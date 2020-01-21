@@ -148,7 +148,7 @@ class DataSet():
                 #print(lt)
                 src_idx = [vocab[s] for s in token_src.tokenize(ls)]
                 tgt_idx = [vocab[t] for t in token_tgt.tokenize(lt)]
-                if max_length > 0 and (len(src_idx) > max_length or len(tgt_idx) > max_length): 
+                if max_length > 0 and (len(src_idx) + len(tgt_idx)) > max_length: 
                     continue
                 m += 1
                 ### src-side
