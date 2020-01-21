@@ -14,13 +14,11 @@ class Argv():
 
     def __init__(self, argv):
         self.prog = argv.pop(0)
-        self.usage = '''usage: {} -dir DIR [-learn YAML] [-infer YAML] [-model YAML] [-optim YAML] [-seed INT] [-log FILE] [-loglevel LEVEL]
+        self.usage = '''usage: {} -dir DIR [-learn YAML] [-infer YAML] [-config YAML] [-seed INT] [-log FILE] [-loglevel LEVEL]
    -dir        DIR : checkpoint directory (must not exist when learning from scratch)
    -infer     YAML : test config file (inference mode)
    -learn     YAML : train config file (learning mode)
-
-   -model     YAML : modeling config file (needed when learning from scratch)
-   -optim     YAML : optimization config file (needed when learning from scratch)
+   -config    YAML : modeling/optim config file (needed when learning from scratch)
 
    -seed       INT : seed value (default 12345)
    -log       FILE : log file (default stderr)
@@ -32,20 +30,18 @@ class Argv():
 * When learning from scratch:
   + The directory -dir DIR is created
   + source and target vocabs/bpe files are copied to DIR (cannot be further modified)
-  + config files -optim YAML and -model YAML are copied to DIR (cannot be further modified)
+  + config file -config YAML is copied to DIR (cannot be further modified)
 '''.format(self.prog)
-        self.fopt = None
-        self.fmod = None
-        self.flearn = None
+        self.fcfg = None
         self.flog = None
         self.log_level = 'info'
         self.dir = None
+        self.flearn = None
         self.finfer = None
         self.seed = 12345
         while len(argv):
             tok = argv.pop(0)
-            if   (tok=="-optim"    and len(argv)): self.fopt = argv.pop(0)
-            elif (tok=="-model"    and len(argv)): self.fmod = argv.pop(0)
+            if   (tok=="-config"   and len(argv)): self.fcfg = argv.pop(0)
             elif (tok=="-learn"    and len(argv)): self.flearn = argv.pop(0)
             elif (tok=="-log"      and len(argv)): self.flog = argv.pop(0)
             elif (tok=="-loglevel" and len(argv)): self.log_level = argv.pop(0)
@@ -84,45 +80,35 @@ class Argv():
             sys.exit()
 
         if os.path.exists(self.dir):
-            if self.fopt is not None:
-                logging.warning('-opt FILE not used ({}/optim.yml)'.format(self.dir))
-            if self.fmod is not None:
-                logging.warning('-mod FILE not used ({}/model.yml)'.format(self.dir))
-            self.fopt = self.dir + "/optim.yml"
-            self.fmod = self.dir + "/model.yml"
+            if self.fcfg is not None:
+                logging.warning('-config FILE not used ({}/config.yml)'.format(self.dir))
+            self.fcfg = self.dir + "/config.yml"
         else:
-            if self.fopt is None:
-                logging.error('missing -opt option')
-                sys.exit()
-            if self.fmod is None:
-                logging.error('missing -mod option')
+            if self.fcfg is None:
+                logging.error('missing -config option')
                 sys.exit()
 
 
 def create_experiment(opts):
-    with open(opts.fmod) as file:
-        mymod = yaml.load(file, Loader=yaml.FullLoader)
-        logging.debug('Read model : {}'.format(mymod))
+    with open(opts.fcfg) as file:
+        mycfg = yaml.load(file, Loader=yaml.FullLoader)
+        logging.debug('Read config : {}'.format(mycfg))
     os.mkdir(opts.dir)
     ### copy vocab/bpe/optim.yml files to opts.dir
-    copyfile(mymod['vocab'], opts.dir+"/vocab")
-    logging.info('copied {} => {}'.format(mymod['vocab'], opts.dir+"/vocab"))
-    copyfile(mymod['tokenization']['src']['bpe_model_path'], opts.dir+"/bpe_model_src")
-    logging.info('copied {} => {}'.format(mymod['tokenization']['src']['bpe_model_path'], opts.dir+"/bpe_model_src"))
-    copyfile(mymod['tokenization']['tgt']['bpe_model_path'], opts.dir+"/bpe_model_tgt")
-    logging.info('copied {} => {}'.format(mymod['tokenization']['tgt']['bpe_model_path'], opts.dir+"/bpe_model_tgt"))
-    copyfile(opts.fopt, opts.dir+"/optim.yml")
-    logging.info('copied {} => {}'.format(opts.fopt, opts.dir+"/optim.yml"))
+    copyfile(mycfg['vocab'], opts.dir+"/vocab")
+    logging.info('copied {} => {}'.format(mycfg['vocab'], opts.dir+"/vocab"))
+    copyfile(mycfg['tokenization']['src']['bpe_model_path'], opts.dir+"/bpe_model_src")
+    logging.info('copied {} => {}'.format(mycfg['tokenization']['src']['bpe_model_path'], opts.dir+"/bpe_model_src"))
+    copyfile(mycfg['tokenization']['tgt']['bpe_model_path'], opts.dir+"/bpe_model_tgt")
+    logging.info('copied {} => {}'.format(mycfg['tokenization']['tgt']['bpe_model_path'], opts.dir+"/bpe_model_tgt"))
     ### update vocb/bpe files in opts.fmod 
-    mymod['vocab'] = opts.dir+"/vocab"
-    mymod['tokenization']['src']['bpe_model_path'] = opts.dir+"/bpe_model_src"
-    mymod['tokenization']['tgt']['bpe_model_path'] = opts.dir+"/bpe_model_tgt"
+    mycfg['vocab'] = opts.dir+"/vocab"
+    mycfg['tokenization']['src']['bpe_model_path'] = opts.dir+"/bpe_model_src"
+    mycfg['tokenization']['tgt']['bpe_model_path'] = opts.dir+"/bpe_model_tgt"
     ### dump mymod into opts.dir/model.yml
-    with open(opts.dir+"/model.yml", 'w') as file:
-        _ = yaml.dump(mymod, file)
-    ### replace opts.fmod/opts.fopt by the new ones
-    opts.fmod = opts.dir+"/model.yml"
-    opts.fopt = opts.dir+"/optim.yml"
+    with open(opts.dir+"/config.yml", 'w') as file:
+        _ = yaml.dump(mycfg, file)
+    opts.fcfg = opts.dir+"/config.yml"
 
 
 if __name__ == "__main__":
@@ -141,14 +127,10 @@ if __name__ == "__main__":
         ### copying also model.yml and optim.yml which cannot be changed anymore
         create_experiment(opts)
 
-    with open(opts.dir+"/model.yml") as file:
-        opts.mod = yaml.load(file, Loader=yaml.FullLoader)
-        logging.debug('Read model : {}'.format(opts.mod))
+    with open(opts.dir+"/config.yml") as file:
+        opts.cfg = yaml.load(file, Loader=yaml.FullLoader)
+        logging.debug('Read config : {}'.format(opts.cfg))
 
-    with open(opts.dir+"/optim.yml") as file:
-        opts.opt = yaml.load(file, Loader=yaml.FullLoader)
-        logging.debug('Read optim : {}'.format(opts.opt))
-        
     if opts.finfer is not None:
         with open(opts.finfer) as file:
             opts.test = yaml.load(file, Loader=yaml.FullLoader)

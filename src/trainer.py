@@ -10,7 +10,9 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 from src.dataset import Vocab, DataSet, OpenNMTTokenizer
 from src.model import make_model
+from src.optim import NoamOpt, LabelSmoothing, ComputeLoss
 
+'''
 class NoamOpt:
     def __init__(self, model_size, factor, warmup, optimizer):
         self.optimizer = optimizer
@@ -49,8 +51,9 @@ class NoamOpt:
                 self.optimizer.load_state_dict(state_dict["optimizer"])
             else:
                 setattr(self, key, value)
+'''
 
-
+'''
 class LabelSmoothing(nn.Module):
     def __init__(self, size, padding_idx, smoothing=0.0):
         super(LabelSmoothing, self).__init__()
@@ -72,8 +75,9 @@ class LabelSmoothing(nn.Module):
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         self.true_dist = true_dist
         return self.criterion(x, Variable(true_dist, requires_grad=False))
+'''
 
-
+'''
 class ComputeLoss:
     def __init__(self, criterion, opt=None):
         self.criterion = criterion
@@ -87,7 +91,7 @@ class ComputeLoss:
         if self.opt is not None:
             self.opt.step() #performs a parameter update based on the current gradient
         return loss.data * norm
-
+'''
 
 class Trainer():
 
@@ -97,8 +101,8 @@ class Trainer():
         self.validation_every_steps = opts.train['validation_every_steps']
         self.checkpoint_every_steps = opts.train['checkpoint_every_steps']
         self.train_steps = opts.train['train_steps']
-        self.vocab = Vocab(opts.mod['vocab'])
-        self.cuda = opts.mod['cuda']
+        self.vocab = Vocab(opts.cfg['vocab'])
+        self.cuda = opts.cfg['cuda']
         self.n_steps_so_far = 0
         self.steps = []
         if 'mono_step' in opts.train and 'prob' in opts.train['mono_step'] and opts.train['mono_step']['prob'] > 0:
@@ -112,18 +116,18 @@ class Trainer():
             self.tran_step = opts.train['tran_step']
         logging.debug('steps: {}'.format(self.steps))
         V = len(self.vocab)
-        N = opts.mod['num_layers']
-        d_model = opts.mod['hidden_size']
-        d_ff = opts.mod['feedforward_size']
-        h = opts.mod['num_heads']
-        dropout = opts.mod['dropout']
-        factor = opts.opt['factor']
-        smoothing = opts.opt['smoothing']
-        warmup_steps = opts.opt['warmup_steps']
-        lrate = opts.opt['learning_rate']
-        beta1 = opts.opt['beta1']
-        beta2 = opts.opt['beta2']
-        eps = opts.opt['eps']
+        N = opts.cfg['num_layers']
+        d_model = opts.cfg['hidden_size']
+        d_ff = opts.cfg['feedforward_size']
+        h = opts.cfg['num_heads']
+        dropout = opts.cfg['dropout']
+        factor = opts.cfg['factor']
+        smoothing = opts.cfg['smoothing']
+        warmup_steps = opts.cfg['warmup_steps']
+        lrate = opts.cfg['learning_rate']
+        beta1 = opts.cfg['beta1']
+        beta2 = opts.cfg['beta2']
+        eps = opts.cfg['eps']
         
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         logging.debug('built model')
@@ -138,21 +142,21 @@ class Trainer():
 
         self.computeloss = ComputeLoss(self.criterion, self.optimizer)
 
-        token_src = OpenNMTTokenizer(**opts.mod['tokenization']['src'])
-        token_tgt = OpenNMTTokenizer(**opts.mod['tokenization']['tgt'])
+        token_src = OpenNMTTokenizer(**opts.cfg['tokenization']['src'])
+        token_tgt = OpenNMTTokenizer(**opts.cfg['tokenization']['tgt'])
 
         logging.info('Read Train data')
         self.data_train = DataSet(opts.train['batch_size'], is_valid=False)
         files_src = opts.train['train']['src']
         files_tgt = opts.train['train']['tgt']
-        self.data_train.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=opts.train['max_length'],example=opts.mod['example_format'])
+        self.data_train.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=opts.train['max_length'],example=opts.cfg['example_format'])
 
         logging.info('Read Valid data')
         batch_size = 4
         self.data_valid = DataSet(batch_size, is_valid=True)
         files_src = opts.train['valid']['src']
         files_tgt = opts.train['valid']['tgt']
-        self.data_valid.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=0,example=opts.mod['example_format'])
+        self.data_valid.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=0,example=opts.cfg['example_format'])
 
     def load_checkpoint(self):
         files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 

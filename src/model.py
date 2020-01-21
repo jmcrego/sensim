@@ -8,9 +8,7 @@ from torch.autograd import Variable
 def clones(m, N):
     return nn.ModuleList([copy.deepcopy(m) for _ in range(N)])
 
-####################################################################
-####################################################################
-####################################################################
+
 class EncoderGenerator(nn.Module):
     def __init__(self, encoder, embed, generator):
         super(EncoderGenerator, self).__init__()
@@ -22,9 +20,6 @@ class EncoderGenerator(nn.Module):
         return self.generator(self.encoder(self.embed(src), src_mask))
 
 
-####################################################################
-####################################################################
-####################################################################
 class Generator(nn.Module):
     def __init__(self, d_model, vocab):
         super(Generator, self).__init__()
@@ -34,9 +29,6 @@ class Generator(nn.Module):
         return F.log_softmax(self.proj(x), dim=-1)
 
 
-####################################################################
-####################################################################
-####################################################################
 class Encoder(nn.Module):
     def __init__(self, layer, N):
         super(Encoder, self).__init__()
@@ -49,9 +41,6 @@ class Encoder(nn.Module):
         return self.norm(x)
 
 
-####################################################################
-####################################################################
-####################################################################
 class LayerNorm(nn.Module):
     def __init__(self, features, eps=1e-6):
         super(LayerNorm, self).__init__()
@@ -65,9 +54,6 @@ class LayerNorm(nn.Module):
         return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
 
 
-####################################################################
-####################################################################
-####################################################################
 class SublayerConnection(nn.Module):
     def __init__(self, size, dropout):
         super(SublayerConnection, self).__init__()
@@ -77,9 +63,7 @@ class SublayerConnection(nn.Module):
     def forward(self, x, sublayer):
         return x + self.dropout(sublayer(self.norm(x)))
 
-####################################################################
-####################################################################
-####################################################################
+
 class EncoderLayer(nn.Module):
     def __init__(self, size, self_attn, feed_forward, dropout):
         super(EncoderLayer, self).__init__()
@@ -94,9 +78,6 @@ class EncoderLayer(nn.Module):
         return x
 
 
-####################################################################
-####################################################################
-####################################################################
 class MultiHeadedAttention(nn.Module):
     def __init__(self, h, d_model, dropout=0.1):
         "Take in model size and number of heads."
@@ -123,9 +104,6 @@ class MultiHeadedAttention(nn.Module):
         return self.linears[-1](x)
 
 
-####################################################################
-####################################################################
-####################################################################
 def attention(query, key, value, mask=None, dropout=None):
     d_k = query.size(-1)
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
@@ -137,9 +115,6 @@ def attention(query, key, value, mask=None, dropout=None):
     return torch.matmul(p_attn, value), p_attn
 
 
-####################################################################
-####################################################################
-####################################################################
 class PositionwiseFeedForward(nn.Module):
     def __init__(self, d_model, d_ff, dropout=0.1):
         super(PositionwiseFeedForward, self).__init__()
@@ -151,9 +126,6 @@ class PositionwiseFeedForward(nn.Module):
         return self.w_2(self.dropout(F.relu(self.w_1(x))))
 
 
-####################################################################
-####################################################################
-####################################################################
 class Embeddings(nn.Module):
     def __init__(self, d_model, vocab):
         super(Embeddings, self).__init__()
@@ -164,9 +136,6 @@ class Embeddings(nn.Module):
         return self.lut(x) * math.sqrt(self.d_model)
 
 
-####################################################################
-####################################################################
-####################################################################
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout, max_len=5000):
         super(PositionalEncoding, self).__init__()
