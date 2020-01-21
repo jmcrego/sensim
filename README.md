@@ -44,8 +44,8 @@ CUDA_VISIBLE_DEVICES=0 python3 sensim.py -dir exp1 -learn cfg/train.yml -model c
 cat cfg/model.yml
 ```
 tokenization:
-src: { bpe_model_path: ./data/joint_enfr.30k.bpe, mode: conservative, joiner_annotate: true }
-tgt: { bpe_model_path: ./data/joint_enfr.30k.bpe, mode: conservative, joiner_annotate: true }
+	src: { bpe_model_path: ./data/joint_enfr.30k.bpe, mode: conservative, joiner_annotate: true }
+	tgt: { bpe_model_path: ./data/joint_enfr.30k.bpe, mode: conservative, joiner_annotate: true }
 vocab: ./data/en.vocab
 example_format:
 	src: { cls: true, bos: true, eos: true }
