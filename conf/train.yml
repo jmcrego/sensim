@@ -1,0 +1,16 @@
+valid:
+  src: [ ./data/ECB.val.en.gz, ./data/EMEA.val.en.gz, ./data/KDE4.val.en.gz ]
+  tgt: [ ./data/ECB.val.fr.gz, ./data/EMEA.val.fr.gz, ./data/KDE4.val.fr.gz ]
+train:
+  src: [ ./data/ECB.trn.en.gz, ./data/EMEA.trn.en.gz, ./data/KDE4.trn.en.gz ]
+  tgt: [ ./data/ECB.trn.fr.gz, ./data/EMEA.trn.fr.gz, ./data/KDE4.trn.fr.gz ]
+max_length: 100
+batch_size: 32
+train_steps: 1000000
+para_step: { prob: 0.15, same: 0.1, rnd: 0.1 }
+tran_step: { prob: 0.15, same: 0.1, rnd: 0.1 }
+mono_step: { prob: 0.15, same: 0.1, rnd: 0.1 }
+checkpoint_every_steps: 5000
+validation_every_steps: 5000
+report_every_steps: 100
+
