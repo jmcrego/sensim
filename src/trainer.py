@@ -148,7 +148,8 @@ class Trainer():
         self.data_train.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=opts.train['max_length'],example=opts.mod['example_format'])
 
         logging.info('Read Valid data')
-        self.data_valid = DataSet(opts.train[4], is_valid=True)
+        batch_size = 4
+        self.data_valid = DataSet(batch_size, is_valid=True)
         files_src = opts.train['valid']['src']
         files_tgt = opts.train['valid']['tgt']
         self.data_valid.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=0,example=opts.mod['example_format'])
