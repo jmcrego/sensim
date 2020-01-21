@@ -130,30 +130,22 @@ class Trainer():
         eps = opts.cfg['eps']
         
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
-        logging.debug('built model')
-
         self.optimizer = NoamOpt(d_model, factor, warmup_steps, torch.optim.Adam(self.model.parameters(), lr=lrate, betas=(beta1, beta2), eps=eps))
-        logging.debug('built optimizer')
-
         self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=smoothing)
-        logging.debug('built criterion (label smoothing)')
-
         self.load_checkpoint() #loads if exists
-
         self.computeloss = ComputeLoss(self.criterion, self.optimizer)
 
         token_src = OpenNMTTokenizer(**opts.cfg['tokenization']['src'])
         token_tgt = OpenNMTTokenizer(**opts.cfg['tokenization']['tgt'])
 
         logging.info('Read Train data')
-        self.data_train = DataSet(opts.train['batch_size'], is_valid=False)
+        self.data_train = DataSet(opts.train['batch_size'][0], is_valid=False)
         files_src = opts.train['train']['src']
         files_tgt = opts.train['train']['tgt']
         self.data_train.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=opts.train['max_length'],example=opts.cfg['example_format'])
 
         logging.info('Read Valid data')
-        batch_size = 4
-        self.data_valid = DataSet(batch_size, is_valid=True)
+        self.data_valid = DataSet(opts.train['batch_size'][1], is_valid=True)
         files_src = opts.train['valid']['src']
         files_tgt = opts.train['valid']['tgt']
         self.data_valid.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=0,example=opts.cfg['example_format'])

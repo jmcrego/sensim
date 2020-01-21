@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import logging
 import math, copy, time
 from torch.autograd import Variable
 
@@ -161,10 +162,10 @@ def make_model(vocab, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
         nn.Sequential(Embeddings(d_model,vocab), PositionalEncoding(d_model,dropout)),                                              #src_embed
         Generator(d_model,vocab)                                                                                                    #generator
         )
-
     for p in model.parameters():
         if p.dim() > 1:
             nn.init.xavier_uniform_(p)
+    logging.debug('built model')
     return model
 
 

@@ -1,4 +1,5 @@
 import torch
+import logging
 from torch import nn
 from torch.autograd import Variable
 
@@ -10,6 +11,7 @@ class NoamOpt:
         self.factor = factor
         self.model_size = model_size
         self._rate = 0
+        logging.debug('built NoamOpt')
         
     def step(self):
         self._step += 1
@@ -54,6 +56,7 @@ class LabelSmoothing(nn.Module):
         self.smoothing = smoothing
         self.size = size
         self.true_dist = None
+        logging.debug('built criterion (label smoothing)')
         
     def forward(self, x, target):
         assert x.size(1) == self.size
