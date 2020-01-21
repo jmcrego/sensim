@@ -12,87 +12,6 @@ from src.dataset import Vocab, DataSet, OpenNMTTokenizer
 from src.model import make_model
 from src.optim import NoamOpt, LabelSmoothing, ComputeLoss
 
-'''
-class NoamOpt:
-    def __init__(self, model_size, factor, warmup, optimizer):
-        self.optimizer = optimizer
-        self.warmup = warmup
-        self.factor = factor
-        self.model_size = model_size
-        self._step = 0
-        self._rate = 0
-        
-    def step(self):
-        self._step += 1
-        rate = self.rate()
-        for p in self.optimizer.param_groups:
-            p['lr'] = rate
-        self._rate = rate
-        self.optimizer.step()
-        
-    def rate(self, step = None):
-        if step is None:
-            step = self._step
-        return self.factor * (self.model_size ** (-0.5) * min(step ** (-0.5), step * self.warmup ** (-1.5)))
-
-    def state_dict(self):
-        return {
-            "_step": self._step,
-            "warmup": self.warmup,
-            "factor": self.factor,
-            "model_size": self.model_size,
-            "_rate": self._rate,
-            "optimizer": self.optimizer.state_dict()
-        }
-
-    def load_state_dict(self, state_dict):
-        for key, value in state_dict.items():
-            if key == "optimizer":
-                self.optimizer.load_state_dict(state_dict["optimizer"])
-            else:
-                setattr(self, key, value)
-'''
-
-'''
-class LabelSmoothing(nn.Module):
-    def __init__(self, size, padding_idx, smoothing=0.0):
-        super(LabelSmoothing, self).__init__()
-        self.criterion = nn.KLDivLoss(reduction='sum')
-        self.padding_idx = padding_idx
-        self.confidence = 1.0 - smoothing
-        self.smoothing = smoothing
-        self.size = size
-        self.true_dist = None
-        
-    def forward(self, x, target):
-        assert x.size(1) == self.size
-        true_dist = x.data.clone()
-        true_dist.fill_(self.smoothing / (self.size - 2))
-        true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
-        true_dist[:, self.padding_idx] = 0
-        mask = torch.nonzero(target.data == self.padding_idx)
-        if mask.dim() > 0:
-            true_dist.index_fill_(0, mask.squeeze(), 0.0)
-        self.true_dist = true_dist
-        return self.criterion(x, Variable(true_dist, requires_grad=False))
-'''
-
-'''
-class ComputeLoss:
-    def __init__(self, criterion, opt=None):
-        self.criterion = criterion
-        self.opt = opt
-        
-    def __call__(self, x, y, norm):
-        if self.opt is not None:
-            self.opt.optimizer.zero_grad()
-        loss = self.criterion(x.contiguous().view(-1, x.size(-1)), y.contiguous().view(-1)) / norm
-        loss.backward()
-        if self.opt is not None:
-            self.opt.step() #performs a parameter update based on the current gradient
-        return loss.data * norm
-'''
-
 class Trainer():
 
     def __init__(self, opts):
@@ -134,21 +53,20 @@ class Trainer():
         self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=smoothing)
         self.load_checkpoint() #loads if exists
         self.computeloss = ComputeLoss(self.criterion, self.optimizer)
-
-        token_src = OpenNMTTokenizer(**opts.cfg['tokenization']['src'])
-        token_tgt = OpenNMTTokenizer(**opts.cfg['tokenization']['tgt'])
+        token = OpenNMTTokenizer(**opts.cfg['token'])
 
         logging.info('Read Train data')
         self.data_train = DataSet(opts.train['batch_size'][0], is_valid=False)
         files_src = opts.train['train']['src']
         files_tgt = opts.train['train']['tgt']
-        self.data_train.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=opts.train['max_length'],example=opts.cfg['example_format'])
+        self.data_train.read(files_src,files_tgt,token,self.vocab,max_length=opts.train['max_length'],example=opts.cfg['example_format'])
 
         logging.info('Read Valid data')
         self.data_valid = DataSet(opts.train['batch_size'][1], is_valid=True)
         files_src = opts.train['valid']['src']
         files_tgt = opts.train['valid']['tgt']
-        self.data_valid.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=0,example=opts.cfg['example_format'])
+        self.data_valid.read(files_src,files_tgt,token,self.vocab,max_length=0,example=opts.cfg['example_format'])
+
 
     def load_checkpoint(self):
         files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
@@ -168,8 +86,6 @@ class Trainer():
             if self.cuda:
                 self.model.cuda()
                 self.criterion.cuda()
-
-            
 
             
     def save_checkpoint(self):
@@ -217,7 +133,6 @@ class Trainer():
             ### report
             ###
             if self.report_every_steps > 0 and self.n_steps_so_far % self.report_every_steps == 0:
-                #logging.info('n_steps_so_far={}'.format(self.n_steps_so_far))
                 logging.info("Train step: {} Loss: {:.4f} Tokens/sec: {:.1f}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start))) 
                 n_words_so_far = 0
                 sum_loss_so_far = 0.0

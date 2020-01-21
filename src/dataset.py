@@ -127,7 +127,7 @@ class DataSet():
         self.batch_size = batch_size
         self.is_valid = is_valid
 
-    def read(self, lsrc, ltgt, token_src, token_tgt, vocab, max_length=0, example=None):
+    def read(self, lsrc, ltgt, token, vocab, max_length=0, example=None):
         for l in range(len(lsrc)):
             ### src
             if lsrc[l].endswith('.gz'): 
@@ -146,8 +146,8 @@ class DataSet():
                 n += 1
                 #print(ls)
                 #print(lt)
-                src_idx = [vocab[s] for s in token_src.tokenize(ls)]
-                tgt_idx = [vocab[t] for t in token_tgt.tokenize(lt)]
+                src_idx = [vocab[s] for s in token.tokenize(ls)]
+                tgt_idx = [vocab[t] for t in token.tokenize(lt)]
                 if max_length > 0 and (len(src_idx) + len(tgt_idx)) > max_length: 
                     continue
                 m += 1

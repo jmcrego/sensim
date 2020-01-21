@@ -25,7 +25,7 @@ class Argv():
    -loglevel LEVEL : use 'debug', 'info', 'warning', 'critical' or 'error' (default info) 
    -h              : this help
 
-* The script needs pyonmttok installed (pip install pyonmttok)
+* The script needs: pyonmttok, pyyaml
 * Use -learn YAML (or -infer YAML) for learning (or inference) modes
 * When learning from scratch:
   + The directory -dir DIR is created
@@ -94,18 +94,16 @@ def create_experiment(opts):
         mycfg = yaml.load(file, Loader=yaml.FullLoader)
         logging.debug('Read config : {}'.format(mycfg))
     os.mkdir(opts.dir)
-    ### copy vocab/bpe/optim.yml files to opts.dir
+    ### copy vocab/bpe/config.yml files to opts.dir
     copyfile(mycfg['vocab'], opts.dir+"/vocab")
     logging.info('copied {} => {}'.format(mycfg['vocab'], opts.dir+"/vocab"))
-    copyfile(mycfg['tokenization']['src']['bpe_model_path'], opts.dir+"/bpe_model_src")
-    logging.info('copied {} => {}'.format(mycfg['tokenization']['src']['bpe_model_path'], opts.dir+"/bpe_model_src"))
-    copyfile(mycfg['tokenization']['tgt']['bpe_model_path'], opts.dir+"/bpe_model_tgt")
-    logging.info('copied {} => {}'.format(mycfg['tokenization']['tgt']['bpe_model_path'], opts.dir+"/bpe_model_tgt"))
+    ### copy bpe_model
+    copyfile(mycfg['token']['bpe_model_path'], opts.dir+"/bpe_model")
+    logging.info('copied {} => {}'.format(mycfg['token']['bpe_model_path'], opts.dir+"/bpe_model"))
     ### update vocb/bpe files in opts.fmod 
     mycfg['vocab'] = opts.dir+"/vocab"
-    mycfg['tokenization']['src']['bpe_model_path'] = opts.dir+"/bpe_model_src"
-    mycfg['tokenization']['tgt']['bpe_model_path'] = opts.dir+"/bpe_model_tgt"
-    ### dump mymod into opts.dir/model.yml
+    mycfg['token']['bpe_model_path'] = opts.dir+"/bpe_model"
+    ### dump mycfg into opts.dir/config.yml
     with open(opts.dir+"/config.yml", 'w') as file:
         _ = yaml.dump(mycfg, file)
     opts.fcfg = opts.dir+"/config.yml"
