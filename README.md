@@ -2,126 +2,88 @@
 
 Sentence Similarity through Transformer via Alignment
 
+Install:
+```
+pip3 install torch torchvision
+pip3 install pyonmttok
+pip3 install pyyaml
+```
+
+Prepare corpora:
+```
+```
+
+## Usage:
+```
+usage: sensim.py -dir DIR [-learn YAML] [-infer YAML] [-model YAML] [-optim YAML] [-seed INT] [-log FILE] [-loglevel LEVEL]
+   -dir        DIR : checkpoint directory (must not exist when learning from scratch)
+      -infer     YAML : test config file (inference mode)
+         -learn     YAML : train config file (learning mode)
+
+   -model     YAML : modeling config file (needed when learning from scratch)
+      -optim     YAML : optimization config file (needed when learning from scratch)
+
+   -seed       INT : seed value (default 12345)
+      -log       FILE : log file (default stderr)
+         -loglevel LEVEL : use 'debug', 'info', 'warning', 'critical' or 'error' (default info)
+	    -h              : this help
+
+* The script needs pyonmttok installed (pip install pyonmttok)
+* Use -learn YAML (or -infer YAML) for learning (or inference) modes
+* When learning from scratch:
+  + The directory -dir DIR is created
+    + source and target vocabs/bpe files are copied to DIR (cannot be further modified)
+      + config files -optim YAML and -model YAML are copied to DIR (cannot be further modified)
+```
+
+Learn example:
+```
 CUDA_VISIBLE_DEVICES=0 python3 sensim.py -dir exp1 -learn cfg/train.yml -model cfg/model.yml -optim cfg/optim.yml
-
-## Tokeniser (OpenNMT):
 ```
-pip install pyonmttok
-echo "Hello World!" | onmt-tokenize-text --tokenizer OpenNMTTokenizer --tokenizer_config tokconfig
-Hello World ￭!
+Config files:
 ```
-tokconfig indicates tokenization options. Ex:
-```
-mode: conservative
-joiner_annotate: true
-```
-To build vocabularies, use: 
-```
-onmt-build-vocab
-```
-OR
-```
-git clone https://github.com/OpenNMT/Tokenizer.git
-cd Tokenizer
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
-echo "Hello World!" | cli/tokenize --mode conservative --joiner_annotate
-Hello World ￭!
-```
-To learn subword models (BPE, SentencePiece), use: 
-```
-cli/subword_learn
-```
-
-See the [OpenNMT/Tokenizer](https://github.com/OpenNMT/Tokenizer) github site for more details.
-
-## Cleaner:
-```
-usage: corpus-clean-bitext.py -src FILE -tgt FILE [-tag STRING] [-min INT] [-max INT] [-maxw INT] [-fert FLOAT] [-uniq] [-equals] [-seed INT]
-   -src   FILE : input source file
-   -tgt   FILE : input target file
-   -tag STRING : output files are built adding this prefix to the original file names (default clean_min1_max99_maxw0_fert6.0_uniqFalse_equalsFalse_tokNone)
-
-   -tok   MODE : use pyonmttok tokenizer aggressive|conservative|space before filtering (default None)
-   -min    INT : discard if src/tgt contains less than [min] words (default 1)
-   -max    INT : discard if src/tgt contains more than [max] words (default 99)
-   -maxw   INT : discard if src/tgt contains a token with more than [maxw] characters (default 0:not used)
-   -fert FLOAT : discard if src/tgt is [fert] times bigger than tgt/src (default 6.0)
-   -uniq       : discard repeated sentence pairs (default False)
-   -equals     : discard if src equals to tgt (default False)
-
-   -seed   INT : seed for random shuffle (default None). Do not set to avoid shuffling
-   -v          : verbose output (default False)
-   -h          : this help
-
-The script needs pyonmttok installed (pip install pyonmttok)
-Output files are tokenised following opennmt tokenizer 'space' mode
-```
-
-## Analyser:
-```
-usage: corpus-analyse.py -trn FILE [-tst FILE]* [-tok FILE]
-       -tok FILE : options for tokenizer
-       -trn FILE : train file
-       -tst FILE : test file
-
-The script needs pyonmttok installed (pip install pyonmttok)
-```
-
-## FuzzyMathing
-```
-usage: fuzzyMatching.py  -mod FILE -trn FILE -tst FILE [-tok FILE] [-nbest INT]
-       -mod     FILE : Suffix Array model file
-       -trn     FILE : train file
-       -tst     FILE : test file
-       -tok     FILE : options for tokenizer
-       -Nbest    INT : show [INT]-best similar sentences (default 10)
-       -minNgram INT : min length for test ngrams (default 2)
-       -maxNgram INT : max length for test ngrams (default 4)
-       -testSet      : collect similar sentences to the entire test set rather than to each input sentence (default false)
-       -sortByEDist  : sort collected sentences by edit distance rather than by ngram overlap counts (default false)
-
-The script needs pyonmttok installed (pip install pyonmttok)
-```
-
-## TfIdf
-```
-usage: tfidf.py -tok FILE -mod FILE ([-trn STRING]+ | -tst FILE [-snt])
-       -tok   FILE : options for tokenizer
-       -mod   FILE : tfidf model file (to create/save)
-       -tst   FILE : file used for inference
-       -trn STRING : file:tag used for the given domain
-       -max      N : max vocabulary size (default 0: use all)
-       -snt        : compute tfidf values for each sentence rather the entire tst file
-
-The script needs pyonmttok installed (pip install pyonmttok)
+cat cfg/model.yml
+tokenization:
+  src: { bpe_model_path: ./data/joint_enfr.30k.bpe, mode: conservative, joiner_annotate: true }
+    tgt: { bpe_model_path: ./data/joint_enfr.30k.bpe, mode: conservative, joiner_annotate: true }
+    vocab: ./data/en.vocab
+    example_format:
+      src: { cls: true, bos: true, eos: true }
+        sep: True
+	  tgt: { cls: false, bos: true, eos: true }
+	  num_layers: 6
+	  hidden_size: 512
+	  feedforward_size: 2048
+	  num_heads: 8
+	  emb_size: 512
+	  dropout: 0.1
+	  cuda: true
 ```
 ```
-usage: idf.py [-data FILE] ( -save FILE | -load FILE )
-       -tok  FILE : options for tokenizer
-       -data FILE : file used to learn/inference
-       -save FILE : save tfidf model after building it with data file      (LEARNING)
-       -load FILE : load tfidf model and use it for inference on data file (INFERENCE)
-
-The script needs pyonmttok installed (pip install pyonmttok)
-```
-
-## Eval:
-```
-usage: multi-bleu.pl [-lc] REF < HYP
+cat cfg/optim.yml
+learning_rate: 0.0001
+beta1: 0.9
+beta2: 0.98
+eps: 0.000000001
+warmup_steps: 10000
+factor: 1.0
+smoothing: 0.1
 ```
 ```
-usage: chrF.py [-h] --ref REF --hyp HYP [--beta FLOAT] [--ngram INT] [--space] [--precision] [--recall]
+cat cfg/train.yml
+valid:
+  src: [ ./data/ECB.val.en.gz, ./data/EMEA.val.en.gz, ./data/KDE4.val.en.gz ]
+    tgt: [ ./data/ECB.val.fr.gz, ./data/EMEA.val.fr.gz, ./data/KDE4.val.fr.gz ]
+    train:
+      src: [ ./data/ECB.trn.en.gz, ./data/EMEA.trn.en.gz, ./data/KDE4.trn.en.gz ]
+        tgt: [ ./data/ECB.trn.fr.gz, ./data/EMEA.trn.fr.gz, ./data/KDE4.trn.fr.gz ]
+	max_length: 100
+	batch_size: 32
+	train_steps: 1000000
+	para_step: { prob: 0.15, same: 0.1, rnd: 0.1 }
+	tran_step: { prob: 0.15, same: 0.1, rnd: 0.1 }
+	mono_step: { prob: 0.15, same: 0.1, rnd: 0.1 }
+	checkpoint_every_steps: 1000
+	validation_every_steps: 5000
+	report_every_steps: 100
 ```
-```
-python RIBES.py -z -r REF -c HYP
-```
-Use sacrebleu (pip3 install sacrebleu)
-```
-sacrebleu [-options] REF < HYP
-```
-
-
-## POS-tagger (Japanese)
