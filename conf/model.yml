@@ -12,4 +12,4 @@ feedforward_size: 2048
 num_heads: 8
 emb_size: 512
 dropout: 0.1
-
+cuda: true

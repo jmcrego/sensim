@@ -98,7 +98,7 @@ class Trainer():
         self.checkpoint_every_steps = opts.train['checkpoint_every_steps']
         self.train_steps = opts.train['train_steps']
         self.vocab = Vocab(opts.mod['vocab'])
-        self.cuda = opts.cuda
+        self.cuda = opts.mod['cuda']
         self.n_steps_so_far = 0
         self.steps = []
         if 'mono_step' in opts.train and 'prob' in opts.train['mono_step'] and opts.train['mono_step']['prob'] > 0:
@@ -148,7 +148,7 @@ class Trainer():
         self.data_train.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=opts.train['max_length'],example=opts.mod['example_format'])
 
         logging.info('Read Valid data')
-        self.data_valid = DataSet(opts.train['batch_size'], is_valid=True)
+        self.data_valid = DataSet(opts.train[4], is_valid=True)
         files_src = opts.train['valid']['src']
         files_tgt = opts.train['valid']['tgt']
         self.data_valid.read(files_src,files_tgt,token_src,token_tgt,self.vocab,max_length=0,example=opts.mod['example_format'])

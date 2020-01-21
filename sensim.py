@@ -14,7 +14,7 @@ class Argv():
 
     def __init__(self, argv):
         self.prog = argv.pop(0)
-        self.usage = '''usage: {} -dir DIR [-learn YAML] [-infer YAML] [-model YAML] [-optim YAML] [-cuda] [-seed INT] [-log FILE] [-loglevel LEVEL]
+        self.usage = '''usage: {} -dir DIR [-learn YAML] [-infer YAML] [-model YAML] [-optim YAML] [-seed INT] [-log FILE] [-loglevel LEVEL]
    -dir        DIR : checkpoint directory (must not exist when learning from scratch)
    -infer     YAML : test config file (inference mode)
    -learn     YAML : train config file (learning mode)
@@ -25,7 +25,6 @@ class Argv():
    -seed       INT : seed value (default 12345)
    -log       FILE : log file (default stderr)
    -loglevel LEVEL : use 'debug', 'info', 'warning', 'critical' or 'error' (default info) 
-   -cuda           : use GPU (default not used)
    -h              : this help
 
 * The script needs pyonmttok installed (pip install pyonmttok)
@@ -43,7 +42,6 @@ class Argv():
         self.dir = None
         self.finfer = None
         self.seed = 12345
-        self.cuda = False
         while len(argv):
             tok = argv.pop(0)
             if   (tok=="-optim"    and len(argv)): self.fopt = argv.pop(0)
@@ -54,7 +52,6 @@ class Argv():
             elif (tok=="-dir"      and len(argv)): self.dir = argv.pop(0)
             elif (tok=="-infer"    and len(argv)): self.finfer = argv.pop(0)
             elif (tok=="-seed"     and len(argv)): self.seed = int(argv.pop(0))
-            elif (tok=="-cuda"):                   self.cuda = True
             elif (tok=="-h"):
                 sys.stderr.write("{}".format(self.usage))
                 sys.exit()
@@ -135,7 +132,7 @@ if __name__ == "__main__":
     if opts.seed > 0:
         random.seed(opts.seed)
         torch.manual_seed(opts.seed)
-        if opts.cuda and torch.cuda.is_available():
+        if torch.cuda.is_available():
             torch.cuda.manual_seed_all(opts.seed)
         logging.debug('random.seed set to {}'.format(opts.seed))
 
