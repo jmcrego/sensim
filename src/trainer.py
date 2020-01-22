@@ -116,7 +116,7 @@ class Trainer():
                 if x_topredict.sum() == 0: #nothing to predict
                     logging.info('batch with nothing to predict')
                     continue
-                h = self.model.forward(x,x_mask) #unsqueeze(-2) outputs [batch_size, 1, max_len]
+                h = self.model.forward(x,x_mask) 
                 loss = self.loss_msk(h, y, x_topredict)
                 n_words_to_predict = x_topredict.sum()
             elif step == 'sim':
@@ -197,7 +197,7 @@ class Trainer():
 
 
     def msk_batch_cuda(self, batch):
-        x_mask = torch.as_tensor((batch != self.vocab.idx_pad).unsqueeze(-2)) #[batch_size, 1, max_len]
+        x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
         x = torch.as_tensor(batch) #[batch_size, max_len]
 
         prob = self.msk_step['prob']
