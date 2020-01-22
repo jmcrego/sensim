@@ -60,7 +60,7 @@ class Trainer():
         self.data_train = DataSet(opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,single_epoch=False)
 
         if 'valid' in opts.train:
-            logging.info('Read Valid data')
+            logging.info('read Valid data')
             self.data_valid = DataSet(opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,single_epoch=True)
         else: 
             self.data_valid = None
@@ -77,7 +77,7 @@ class Trainer():
             self.n_steps_so_far = checkpoint['n_steps_so_far']
             self.optimizer.load_state_dict(checkpoint['optimizer'])
             self.model.load_state_dict(checkpoint['model'])
-            logging.info('Loaded checkpoint {}'.format(file))
+            logging.info('loaded checkpoint {}'.format(file))
         else:
             logging.info('no checkpoint available')
             if self.cuda:
@@ -88,16 +88,18 @@ class Trainer():
     def save_checkpoint(self):
         file = '{}/checkpoint.{:07d}.pth'.format(self.dir,self.n_steps_so_far)
         state = {
-            'cuda': self.cuda,
+            'cuda': self.cuda, ## not needed
             'n_steps_so_far': self.n_steps_so_far,
             'optimizer': self.optimizer.state_dict(),
             'model': self.model.state_dict()
         }
         torch.save(state, file)
-        logging.info('Saved checkpoint {}'.format(file))
+        logging.info('saved checkpoint {}'.format(file))
         files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
         while len(files) > 10:
-            os.remove(file.pop(0)) ### first is the oldest
+            f = files.pop(0)
+            os.remove(f) ### first is the oldest
+            logging.debug('removed checkpoint {}'.format(f))
 
 
     def __call__(self):
