@@ -146,8 +146,6 @@ class DataSet():
                 m = 0
                 for ls, lt in zip(fs,ft):
                     n += 1
-                    #print(ls)
-                    #print(lt)
                     src_idx = [vocab[s] for s in token.tokenize(ls)]
                     tgt_idx = [vocab[t] for t in token.tokenize(lt)]
                     if max_length > 0 and (len(src_idx) + len(tgt_idx)) > max_length: 
@@ -162,7 +160,6 @@ class DataSet():
                     snt_idx.append(idx_bos)
                     snt_idx.extend(tgt_idx)
                     snt_idx.append(idx_eos)
-                    #print(snt_idx)
                     data[1].append(snt_idx)
                 logging.info('read {} out of {} sentence pairs from files [{}, {}]'.format(m,n,fsrc,ftgt))
             else:
@@ -177,8 +174,6 @@ class DataSet():
                 m = 0
                 for ls in fs:
                     n += 1
-                    #print(ls)
-                    #print(lt)
                     src_idx = [vocab[s] for s in token.tokenize(ls)]
                     if max_length > 0 and len(src_idx) > max_length: 
                         continue
@@ -188,7 +183,6 @@ class DataSet():
                     snt_idx.append(idx_bos)
                     snt_idx.extend(src_idx)
                     snt_idx.append(idx_eos)
-                    #print(snt_idx)
                     data[0].append(snt_idx)
                 logging.info('read {} out of {} sentences from file [{}]'.format(m,n,fsrc))
         logging.info('read {} single sentences, {} sentence pairs'.format(len(data[0]), len(data[1])))
