@@ -15,13 +15,11 @@ Prepare corpora:
 
 ## Usage:
 ```
-usage: sensim.py -dir DIR [-learn YAML] [-infer YAML] [-model YAML] [-optim YAML] [-seed INT] [-log FILE] [-loglevel LEVEL]
+usage: sensim.py -dir DIR [-learn YAML] [-infer YAML] [-config YAML] [-seed INT] [-log FILE] [-loglevel LEVEL]
    -dir        DIR : checkpoint directory (must not exist when learning from scratch)
    -infer     YAML : test config file (inference mode)
    -learn     YAML : train config file (learning mode)
-
-   -model     YAML : modeling config file (needed when learning from scratch)
-   -optim     YAML : optimization config file (needed when learning from scratch)
+   -config    YAML : modeling/optim config file (needed when learning from scratch)
 
    -seed       INT : seed value (default 12345)
    -log       FILE : log file (default stderr)
@@ -32,9 +30,9 @@ usage: sensim.py -dir DIR [-learn YAML] [-infer YAML] [-model YAML] [-optim YAML
 * Use -learn YAML (or -infer YAML) for learning (or inference) modes
 * When learning from scratch:
   + The directory -dir DIR is created
-    + source and target vocabs/bpe files are copied to DIR (cannot be further modified)
-      + config files -optim YAML and -model YAML are copied to DIR (cannot be further modified)
-```
+  + source and target vocabs/bpe files are copied to DIR (cannot be further modified)
+  + config file -config YAML is copied to DIR (cannot be further modified)
+  ```
 
 Learn example:
 ```
