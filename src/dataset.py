@@ -164,8 +164,6 @@ class DataSet():
                     snt_idx.append(idx_eos)
                     #print(snt_idx)
                     data[1].append(snt_idx)
-                    if m == 10000:
-                        break
                 logging.info('read {} out of {} sentence pairs in files [{}, {}]'.format(m,n,fsrc,ftgt))
             else:
                 fsrc = files[l][0]
@@ -192,8 +190,6 @@ class DataSet():
                     snt_idx.append(idx_eos)
                     #print(snt_idx)
                     data[0].append(snt_idx)
-                    if m == 10000:
-                        break                    
                 logging.info('read {} out of {} sentences in file [{}]'.format(m,n,fsrc))
         logging.info('read {} single sentences, {} sentence pairs'.format(len(data[0]), len(data[1])))
         ###

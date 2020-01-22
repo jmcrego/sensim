@@ -5,6 +5,7 @@ import time
 import random
 import sys
 import glob
+import os
 from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
@@ -67,7 +68,7 @@ class Trainer():
     def load_checkpoint(self):
         files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
         if len(files):
-            file = files[-1]
+            file = files[-1] ### last is the newest
             checkpoint = torch.load(file)
             self.cuda = checkpoint['cuda']
             if self.cuda:
@@ -94,6 +95,9 @@ class Trainer():
         }
         torch.save(state, file)
         logging.info('Saved checkpoint {}'.format(file))
+        files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
+        while len(files) > 10:
+            os.remove(file.pop(0)) ### first is the oldest
 
 
     def __call__(self):
