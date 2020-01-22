@@ -177,18 +177,19 @@ class ComputeLossMsk:
         self.criterion = criterion
         self.opt = opt
 
-    def __call__(self, h, y, mask): #mask contains True for words to predict, False otherwise
-        norm = mask.sum()
+    def __call__(self, h, y, n_topredict): #y is all masked with <pad> except for tokens to predict for which it contains the true words
         if self.opt is not None:
             self.opt.optimizer.zero_grad()
-        x = self.generator(h) # project x softmax
-        x_linear = x.contiguous().view(-1, x.size(-1))
+        x_hat = self.generator(h) # project x softmax 
+        #x_hat [batch_size, max_len, |vocab|]
+        #y     [batch_size, max_len]
+        x_hat_linear = x_hat.contiguous().view(-1, x_hat.size(-1))
         y_linear = y.contiguous().view(-1)
-        loss = self.criterion(x_linear, y_linear) / norm
+        loss = self.criterion(x_hat_linear, y_linear) / n_topredict
         loss.backward()
         if self.opt is not None:
             self.opt.step() #performs a parameter update based on the current gradient
-        return loss.data * norm
+        return loss.data * n_topredict
 
 
 def make_model(vocab, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
