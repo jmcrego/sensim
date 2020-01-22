@@ -24,6 +24,7 @@ class Trainer():
         self.vocab = Vocab(opts.cfg['vocab'])
         self.cuda = opts.cfg['cuda']
         self.n_steps_so_far = 0
+        self.average_last_n = opts.train['average_last_n']
         self.steps = []
         if 'msk_step' in opts.train and 'every' in opts.train['msk_step'] and opts.train['msk_step']['every'] > 0:
             self.steps.append('msk')
@@ -96,7 +97,7 @@ class Trainer():
         torch.save(state, file)
         logging.info('saved checkpoint {}'.format(file))
         files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
-        while len(files) > 10:
+        while len(files) > self.average_last_n:
             f = files.pop(0)
             os.remove(f) ### first is the oldest
             logging.debug('removed checkpoint {}'.format(f))
