@@ -1,9 +1,5 @@
 token: { bpe_model_path: ./data/joint_enfr.30k.bpe, mode: conservative, joiner_annotate: true }
 vocab: ./data/en.vocab
-example_format:
-  src: { cls: true, bos: true, eos: true }
-  sep: True
-  tgt: { cls: false, bos: true, eos: true }
 num_layers: 6
 hidden_size: 512
 feedforward_size: 2048
@@ -17,5 +13,5 @@ beta2: 0.98
 eps: 0.000000001
 warmup_steps: 10000
 factor: 1.0
-smoothing: 0.1
+label_smoothing: 0.1
 

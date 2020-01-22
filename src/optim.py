@@ -58,7 +58,7 @@ class LabelSmoothing(nn.Module):
         self.true_dist = None
         logging.debug('built criterion (label smoothing)')
         
-    def forward(self, x, target):
+    def forward(self, x, target): #x is [batch_size*max_len, embedding_size] target is [batch_size*max_len, 1]
         assert x.size(1) == self.size
         true_dist = x.data.clone()
         true_dist.fill_(self.smoothing / (self.size - 2))
@@ -68,19 +68,12 @@ class LabelSmoothing(nn.Module):
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         self.true_dist = true_dist
+        #print('x',x.size())
+        #print('true_dist',true_dist.size())
         return self.criterion(x, Variable(true_dist, requires_grad=False))
 
 
-class ComputeLoss:
-    def __init__(self, criterion, opt=None):
-        self.criterion = criterion
-        self.opt = opt
 
-    def __call__(self, x, y, norm):
-        if self.opt is not None:
-            self.opt.optimizer.zero_grad()
-        loss = self.criterion(x.contiguous().view(-1, x.size(-1)), y.contiguous().view(-1)) / norm
-        loss.backward()
-        if self.opt is not None:
-            self.opt.step() #performs a parameter update based on the current gradient
-        return loss.data * norm
+
+
+

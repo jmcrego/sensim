@@ -120,87 +120,107 @@ class Vocab():
 ####################################################################
 class DataSet():
 
-    def __init__(self, batch_size, is_valid=False):
-        self.data = []
-        self.data_len = []
-        self.batches = []
+    def __init__(self, files, token, vocab, batch_size, max_length, allow_shuffle=False, single_epoch=False):
         self.batch_size = batch_size
-        self.is_valid = is_valid
-
-    def read(self, lsrc, ltgt, token, vocab, max_length=0, example=None):
-        for l in range(len(lsrc)):
-            ### src
-            if lsrc[l].endswith('.gz'): 
-                fs = gzip.open(lsrc[l], 'rb')
-            else: 
-                fs = io.open(lsrc[l], 'r', encoding='utf-8', newline='\n', errors='ignore')
-            ### tgt
-            if ltgt[l].endswith('.gz'): 
-                ft = gzip.open(ltgt[l], 'rb')
-            else: 
-                ft = io.open(ltgt[l], 'r', encoding='utf-8', newline='\n', errors='ignore')
-
-            n = 0
-            m = 0
-            for ls, lt in zip(fs,ft):
-                n += 1
-                #print(ls)
-                #print(lt)
-                src_idx = [vocab[s] for s in token.tokenize(ls)]
-                tgt_idx = [vocab[t] for t in token.tokenize(lt)]
-                if max_length > 0 and (len(src_idx) + len(tgt_idx)) > max_length: 
-                    continue
-                m += 1
-                ### src-side
-                if 'src' in example and 'cls' in example['src'] and example['src']['cls']:
-                    src_idx.insert(0,idx_cls)
-                if 'src' in example and 'bos' in example['src'] and example['src']['bos']:
-                    src_idx.insert(0,idx_bos)
-                if 'src' in example and 'eos' in example['src'] and example['src']['eos']:
-                    src_idx.append(idx_eos)
-                ### separator
-                if 'sep' in example and example['sep']:
-                    src_idx.append(idx_sep)
-                ### tgt-side
-                if 'tgt' in example and 'cls' in example['tgt'] and example['tgt']['cls']:
-                    tgt_idx.insert(0,idx_cls)
-                if 'tgt' in example and 'bos' in example['tgt'] and example['tgt']['bos']:
-                    tgt_idx.insert(0,idx_bos)
-                if 'tgt' in example and 'eos' in example['tgt'] and example['tgt']['eos']:
-                    tgt_idx.append(idx_eos)
-
-                snt_idx = src_idx + tgt_idx
-                #print(snt_idx)
-                self.data.append(snt_idx)
-                self.data_len.append(len(snt_idx))
-            logging.info('read {} out of {} sentences in src/tgt files [{}, {}]'.format(m,n,lsrc[l],ltgt[l]))
-        logging.info('read {} sentences'.format(len(self.data)))
-        return
-
-
-    def build_batches(self): 
+        self.allow_shuffle = allow_shuffle
+        self.single_epoch = single_epoch
         self.batches = []
-        indexs = [i for i in range(len(self.data_len))]
-        if not self.is_valid:
+
+        data = [[],[]] #data[0] is for mono texts, data[1] is for bitexts
+        for l in range(len(files)):
+            if len(files[l])==2:
+                fsrc = files[l][0]
+                ftgt = files[l][1]
+                ### src
+                if fsrc.endswith('.gz'): 
+                    fs = gzip.open(fsrc, 'rb')
+                else: 
+                    fs = io.open(fsrc, 'r', encoding='utf-8', newline='\n', errors='ignore')
+                ### tgt
+                if ftgt.endswith('.gz'): 
+                    ft = gzip.open(ftgt, 'rb')
+                else: 
+                    ft = io.open(ftgt, 'r', encoding='utf-8', newline='\n', errors='ignore')
+
+                n = 0
+                m = 0
+                for ls, lt in zip(fs,ft):
+                    n += 1
+                    #print(ls)
+                    #print(lt)
+                    src_idx = [vocab[s] for s in token.tokenize(ls)]
+                    tgt_idx = [vocab[t] for t in token.tokenize(lt)]
+                    if max_length > 0 and (len(src_idx) + len(tgt_idx)) > max_length: 
+                        continue
+                    m += 1
+                    snt_idx = []
+                    snt_idx.append(idx_cls)
+                    snt_idx.append(idx_bos)
+                    snt_idx.extend(src_idx)
+                    snt_idx.append(idx_eos)
+                    snt_idx.append(idx_sep)
+                    snt_idx.append(idx_bos)
+                    snt_idx.extend(tgt_idx)
+                    snt_idx.append(idx_eos)
+                    #print(snt_idx)
+                    data[1].append(snt_idx)
+                    if m == 10000:
+                        break
+                logging.info('read {} out of {} sentence pairs in files [{}, {}]'.format(m,n,fsrc,ftgt))
+            else:
+                fsrc = files[l][0]
+                ### src
+                if fsrc.endswith('.gz'): 
+                    fs = gzip.open(fsrc, 'rb')
+                else: 
+                    fs = io.open(fsrc, 'r', encoding='utf-8', newline='\n', errors='ignore')
+
+                n = 0
+                m = 0
+                for ls in fs:
+                    n += 1
+                    #print(ls)
+                    #print(lt)
+                    src_idx = [vocab[s] for s in token.tokenize(ls)]
+                    if max_length > 0 and len(src_idx) > max_length: 
+                        continue
+                    m += 1
+                    snt_idx = []
+                    snt_idx.append(idx_cls)
+                    snt_idx.append(idx_bos)
+                    snt_idx.extend(src_idx)
+                    snt_idx.append(idx_eos)
+                    #print(snt_idx)
+                    data[0].append(snt_idx)
+                    if m == 10000:
+                        break                    
+                logging.info('read {} out of {} sentences in file [{}]'.format(m,n,fsrc))
+        logging.info('read {} single sentences, {} sentence pairs'.format(len(data[0]), len(data[1])))
+        ###
+        ### building batches with all data read
+        ###
+        self.build_batches(data[0], 1)
+        self.build_batches(data[1], 2)
+        logging.info('found {} batches'.format(len(self.batches)))
+
+
+    def build_batches(self, data, one_or_two):
+        indexs = [i for i in range(len(data))] #indexs in original order
+        if self.allow_shuffle:
             logging.debug('sorting data according to sentence size to minimize padding')
-            indexs = np.argsort(self.data_len)
+            data_len = [len(x) for x in data]
+            indexs = np.argsort(data_len) #indexs sorted by length of data
 
-        logging.debug('building batches')
-        batch, batch_len = [], []
-        for i in range(len(indexs)):
-            ### add to batch
-            batch.append(self.data[indexs[i]])
-            batch_len.append(len(batch[-1]))
-            ### batch filled or last example
-            if len(batch) == self.batch_size or i == len(indexs)-1: 
-                ### add padding
-                for k in range(len(batch)):
-                    batch[k] += [idx_pad]*(max(batch_len)-len(batch[k]))
-                ### add batch
-                self.batches.append([batch, batch_len])
-                batch, batch_len = [], []
-
-        logging.info('found {} batches in {} sentences of dataset'.format(len(self.batches),len(indexs)))
+        curr_batch = []
+        for i in indexs:
+            curr_batch.append(data[i])
+            if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example
+                #add padding
+                max_len = max([len(s) for s in curr_batch])
+                for k in range(len(curr_batch)):
+                    curr_batch[k] += [idx_pad]*(max_len-len(curr_batch[k]))
+                self.batches.append([np.array(curr_batch),one_or_two])
+                curr_batch = []
 
 
     def __len__(self):
@@ -209,17 +229,17 @@ class DataSet():
 
     def __iter__(self):
         while True: #### infinite loop
-            indexs = [i for i in range(len(self.batches))]
-            ### randomize batches if not is_valid
-            if not self.is_valid: 
+            indexs = [i for i in range(len(self.batches))] #indexs in original order
+            if self.allow_shuffle: 
                 logging.debug('shuffling batches in dataset')
-                shuffle(indexs)
+                shuffle(indexs) #indexs randomized
             ### iterate 
             for i in indexs:
                 yield self.batches[i]
-            if self.is_valid:
+            ### end of epoch
+            logging.info('end of dataset epoch')
+            if self.single_epoch:
                 return
-
 
 
 

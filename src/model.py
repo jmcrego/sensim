@@ -10,15 +10,15 @@ def clones(m, N):
     return nn.ModuleList([copy.deepcopy(m) for _ in range(N)])
 
 
-class EncoderGenerator(nn.Module):
-    def __init__(self, encoder, embed, generator):
-        super(EncoderGenerator, self).__init__()
-        self.encoder = encoder
+class EmbedEncoderGenerator(nn.Module):
+    def __init__(self, embed, encoder, generator):
+        super(EmbedEncoderGenerator, self).__init__()
         self.embed = embed
+        self.encoder = encoder
         self.generator = generator
         
     def forward(self, src, src_mask):
-        return self.generator(self.encoder(self.embed(src), src_mask))
+        return self.encoder(self.embed(src), src_mask)
 
 
 class Generator(nn.Module):
@@ -155,13 +155,52 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class ComputeLoss:
+    def __init__(self, generator, criterion, opt=None):
+        self.generator = generator
+        self.criterion = criterion
+        self.opt = opt
+
+    def __call__(self, x, y, norm):
+        if self.opt is not None:
+            self.opt.optimizer.zero_grad()
+        x = self.generator(x) # project x softmax
+        loss = self.criterion(x.contiguous().view(-1, x.size(-1)), y.contiguous().view(-1)) / norm
+        loss.backward()
+        if self.opt is not None:
+            self.opt.step() #performs a parameter update based on the current gradient
+        return loss.data * norm
+
+class ComputeLossMsk:
+    def __init__(self, generator, criterion, opt=None):
+        self.generator = generator
+        self.criterion = criterion
+        self.opt = opt
+
+    def __call__(self, h, y, mask): #mask contains True for words to predict, False otherwise
+        norm = mask.sum()
+        if self.opt is not None:
+            self.opt.optimizer.zero_grad()
+        x = self.generator(h) # project x softmax
+        x_linear = x.contiguous().view(-1, x.size(-1))
+        y_linear = y.contiguous().view(-1)
+        loss = self.criterion(x_linear, y_linear) / norm
+        loss.backward()
+        if self.opt is not None:
+            self.opt.step() #performs a parameter update based on the current gradient
+        return loss.data * norm
+
 
 def make_model(vocab, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
-    model = EncoderGenerator(
-        Encoder(EncoderLayer(d_model, MultiHeadedAttention(h,d_model), PositionwiseFeedForward(d_model,d_ff,dropout), dropout), N), #encoder
-        nn.Sequential(Embeddings(d_model,vocab), PositionalEncoding(d_model,dropout)),                                              #src_embed
-        Generator(d_model,vocab)                                                                                                    #generator
-        )
+    model = EmbedEncoderGenerator(
+        nn.Sequential(
+            Embeddings(d_model,vocab), 
+            PositionalEncoding(d_model,dropout)), #src_embed
+        Encoder(
+            EncoderLayer(d_model, MultiHeadedAttention(h,d_model), 
+            PositionwiseFeedForward(d_model,d_ff,dropout), dropout), N), #encoder
+        Generator(d_model,vocab)) #generator
+
     for p in model.parameters():
         if p.dim() > 1:
             nn.init.xavier_uniform_(p)

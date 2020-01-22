@@ -9,8 +9,8 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 from src.dataset import Vocab, DataSet, OpenNMTTokenizer
-from src.model import make_model
-from src.optim import NoamOpt, LabelSmoothing, ComputeLoss
+from src.model import make_model, ComputeLoss, ComputeLossMsk
+from src.optim import NoamOpt, LabelSmoothing
 
 class Trainer():
 
@@ -24,15 +24,15 @@ class Trainer():
         self.cuda = opts.cfg['cuda']
         self.n_steps_so_far = 0
         self.steps = []
-        if 'mono_step' in opts.train and 'prob' in opts.train['mono_step'] and opts.train['mono_step']['prob'] > 0:
-            self.steps.append('mono')
-            self.mono_step = opts.train['mono_step']
-        if 'para_step' in opts.train and 'prob' in opts.train['para_step'] and opts.train['para_step']['prob'] > 0:
-            self.steps.append('para')
-            self.para_step = opts.train['para_step']
-        if 'tran_step' in opts.train and 'prob' in opts.train['tran_step'] and opts.train['tran_step']['prob'] > 0:
-            self.steps.append('tran')
-            self.tran_step = opts.train['tran_step']
+        if 'msk_step' in opts.train and 'every' in opts.train['msk_step'] and opts.train['msk_step']['every'] > 0:
+            self.steps.append('msk')
+            self.msk_step = opts.train['msk_step']
+        if 'sim_step' in opts.train and 'every' in opts.train['sim_step'] and opts.train['sim_step']['every'] > 0:
+            self.steps.append('sim')
+            self.sim_step = opts.train['sim_step']
+#        if 'ali_step' in opts.train and 'prob' in opts.train['tran_step'] and opts.train['tran_step']['prob'] > 0:
+#            self.steps.append('tran')
+#            self.tran_step = opts.train['tran_step']
         logging.debug('steps: {}'.format(self.steps))
         V = len(self.vocab)
         N = opts.cfg['num_layers']
@@ -41,7 +41,7 @@ class Trainer():
         h = opts.cfg['num_heads']
         dropout = opts.cfg['dropout']
         factor = opts.cfg['factor']
-        smoothing = opts.cfg['smoothing']
+        label_smoothing = opts.cfg['label_smoothing']
         warmup_steps = opts.cfg['warmup_steps']
         lrate = opts.cfg['learning_rate']
         beta1 = opts.cfg['beta1']
@@ -50,23 +50,19 @@ class Trainer():
         
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         self.optimizer = NoamOpt(d_model, factor, warmup_steps, torch.optim.Adam(self.model.parameters(), lr=lrate, betas=(beta1, beta2), eps=eps))
-        self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=smoothing)
+        self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
         self.load_checkpoint() #loads if exists
-        self.computeloss = ComputeLoss(self.criterion, self.optimizer)
+        self.loss_msk = ComputeLossMsk(self.model.generator, self.criterion,self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
 
         logging.info('Read Train data')
-        self.data_train = DataSet(opts.train['batch_size'][0], is_valid=False)
-        files_src = opts.train['train']['src']
-        files_tgt = opts.train['train']['tgt']
-        self.data_train.read(files_src,files_tgt,token,self.vocab,max_length=opts.train['max_length'],example=opts.cfg['example_format'])
+        self.data_train = DataSet(opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,single_epoch=False)
 
-        logging.info('Read Valid data')
-        self.data_valid = DataSet(opts.train['batch_size'][1], is_valid=True)
-        files_src = opts.train['valid']['src']
-        files_tgt = opts.train['valid']['tgt']
-        self.data_valid.read(files_src,files_tgt,token,self.vocab,max_length=0,example=opts.cfg['example_format'])
-
+        if 'valid' in opts.train:
+            logging.info('Read Valid data')
+            self.data_valid = DataSet(opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,single_epoch=True)
+        else: 
+            self.data_valid = None
 
     def load_checkpoint(self):
         files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
@@ -102,30 +98,35 @@ class Trainer():
 
     def __call__(self):
         logging.info('Start train n_steps_so_far={}'.format(self.n_steps_so_far))
-        self.data_train.build_batches()
-        self.data_valid.build_batches()
         n_words_so_far = 0
         sum_loss_so_far = 0.0
         start = time.time()
-        for batch, batch_len in self.data_train:
+        for batch, mono_or_bitext in self.data_train:
             ###
             ### run step
             ###
             self.model.train()
-            batch = np.array(batch)
             step = self.steps[self.n_steps_so_far % len(self.steps)]
             y = torch.from_numpy(batch)
-            x, x_mask = self.mask_batch(batch, step) 
             if self.cuda:
-                x = x.cuda()
-                x_mask = x_mask.cuda()
                 y = y.cuda()
-            n_words_to_predict = x_mask.sum()
-            if n_words_to_predict == 0:
-                logging.debug('no word to predict')
+
+            if step == 'msk':
+                x, x_mask, x_topredict = self.msk_batch_cuda(batch)
+                if x_topredict.sum() == 0: #nothing to predict
+                    logging.info('batch with nothing to predict')
+                    continue
+                h = self.model.forward(x,x_mask) #unsqueeze(-2) outputs [batch_size, 1, max_len]
+                loss = self.loss_msk(h, y, x_topredict)
+                n_words_to_predict = x_topredict.sum()
+            elif step == 'sim':
                 continue
-            y_pred = self.model.forward(x,x_mask.unsqueeze(-2)) #unsqueeze(-2) outputs [batch_size, 1, max_len]
-            loss = self.computeloss(y_pred, y, n_words_to_predict)
+            elif step == 'ali':
+                continue
+            else:
+                logging.info('bad step {}'.format(step))
+                sys.exit()
+
             self.n_steps_so_far += 1
             n_words_so_far += n_words_to_predict
             sum_loss_so_far += loss 
@@ -145,7 +146,7 @@ class Trainer():
             ###
             ### validation
             ###
-            if self.validation_every_steps > 0 and self.n_steps_so_far % self.validation_every_steps == 0:
+            if self.data_valid is not None and len(self.data_valid) and self.validation_every_steps > 0 and self.n_steps_so_far % self.validation_every_steps == 0:
                 self.validation()
             ###
             ### stop training
@@ -177,7 +178,7 @@ class Trainer():
             n_words_to_predict = x_mask.sum()
             if n_words_to_predict == 0:
                 continue
-            y_pred = self.model.forward(x,x_mask.unsqueeze(-2)) #unsqueeze(-2) outputs [batch_size, 1, max_len]
+            y_pred = self.model.forward(x,x_mask) 
             loss = self.computeloss(y_pred, y, n_words_to_predict)
             n_steps_so_far += 1
             n_words_so_far += n_words_to_predict
@@ -195,51 +196,40 @@ class Trainer():
         logging.info('Valid Loss: {:.4f}'.format(sum_loss_valid / n_words_valid))
 
 
-    def mask_batch(self, batch, step):
-        prob = 0.0
-        same = 0.0
-        rnd = 0.0
-        if step == 'mono':
-            prob = self.mono_step['prob']
-            same = self.mono_step['same']
-            rnd = self.mono_step['rnd']
-        elif step == 'para':
-            prob = self.para_step['prob']
-            same = self.para_step['same']
-            rnd = self.para_step['rnd']
-        elif step == 'tran':
-            prob = self.tran_step['prob']
-            same = self.tran_step['same']
-            rnd = self.tran_step['rnd']
-        else:
-            logging.error('bad step name: {}'.format(step))
-            sys.exit()
-        mask = 1.0 - same - rnd
+    def msk_batch_cuda(self, batch):
+        x_mask = torch.as_tensor((batch != self.vocab.idx_pad).unsqueeze(-2)) #[batch_size, 1, max_len]
+        x = torch.as_tensor(batch) #[batch_size, max_len]
+
+        prob = self.msk_step['prob']
+        same = self.msk_step['same']
+        rand = self.msk_step['rand']
+        mask = 1.0 - same - rand
         if mask <= 0.0:
             logging.error('p_mask={} l<= zero'.format(mask))
             sys.exit()
 
-        #x = torch.from_numpy(batch) #[batch_size, max_len]
-        x = torch.as_tensor(batch) #[batch_size, max_len]
-        x_mask = torch.zeros(x.shape, dtype=torch.bool, requires_grad=False) #True if it is masked (either: <msk> or same or rnd)
+        x_topredict= torch.zeros(x.shape, dtype=torch.bool, requires_grad=False) #True if it is to be predicted (either: <msk> or same or rand)
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
                 if not self.vocab.is_reserved(x[i][j]):
                     r = random.random()     # float in range [0.0, 1,0)
-                    if r <= prob: #masked (either: <msk> or same or rnd)
-                        x_mask[i][j] = True
+                    if r < prob: #masked
+                        x_topredict[i][j] = True
                         q = random.random() # float in range [0.0, 1,0)
                         if q < same:        # same
                             pass
-                        elif q < same+rnd:  # rnd among all vocab words
+                        elif q < same+rand: # rand among all vocab words
                             x[i][j] = random.randint(7,len(self.vocab)-1) # int in range [7, |vocab|)
                         else:               # <msk>
                             x[i][j] = self.vocab['<msk>']
 
-        return x, x_mask
+        if self.cuda:
+            x = x.cuda()
+            x_mask = x_mask.cuda()
+            x_topredict = x_topredict.cuda()
 
-    def compute_loss(self, ):
-        pass
+        return x, x_mask, x_topredict
+
 
 
 

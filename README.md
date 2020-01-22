@@ -2,14 +2,14 @@
 
 Sentence Similarity through Transformer via Alignment
 
-Install:
+Prerequisites:
 ```
 pip3 install torch torchvision
 pip3 install pyonmttok
 pip3 install pyyaml
 ```
 
-Prepare corpora:
+Corpora:
 ```
 ```
 
