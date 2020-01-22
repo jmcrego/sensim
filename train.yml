@@ -15,4 +15,5 @@ msk_step: { every: 3, prob: 0.15, same: 0.1, rand: 0.1 }
 checkpoint_every_steps: 1000
 validation_every_steps: 5000
 report_every_steps: 100
+average_last_n: 10
 
