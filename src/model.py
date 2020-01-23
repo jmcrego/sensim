@@ -171,14 +171,46 @@ class ComputeLossMsk:
         y = y.contiguous().view(-1)
         #x_hat [batch_size*max_len, |vocab|]
         #y     [batch_size*max_len]
-        n_ok = ((y == torch.argmax(x_hat, dim=1)) * (y != self.criterion.padding_idx)).sum()
-        print('batch {}/{} acc = {:.2f}'.format(n_ok,n_topredict,100.0*n_ok/n_topredict))
+
+        #n_ok = ((y == torch.argmax(x_hat, dim=1)) * (y != self.criterion.padding_idx)).sum()
+        #logging.debug('batch {}/{} Acc={:.2f}'.format(n_ok,n_topredict,100.0*n_ok/n_topredict))
 
         loss = self.criterion(x_hat, y) / n_topredict
         loss.backward()
         if self.opt is not None:
             self.opt.step() #performs a parameter update based on the current gradient
         return loss.data * n_topredict
+
+
+class ComputeLossSim:
+    def __init__(self, criterion, opt=None):
+        self.criterion = criterion
+        self.opt = opt
+
+    def __call__(self, h, y): 
+        print('h',h.size())
+        print('y',y.size())
+        #h [batch_size, max_len, embedding_size]
+        #y [batch_size, max_len]
+        if self.opt is not None:
+            self.opt.optimizer.zero_grad()
+        h = h.contiguous().view(-1, h.size(-1))
+        y = y.contiguous().view(-1)
+        print('h',h.size())
+        print('y',y.size())
+        #h [batch_size*max_len, embedding_size]
+        #y [batch_size*max_len]
+
+        h1_mask = (y == self.criterion.tok1_idx)
+        h2_mask = (y == self.criterion.tok2_idx)
+        h1 = torch.masked_select(h, h1_mask)
+        h2 = torch.masked_select(h, h2_mask)
+
+        loss = self.criterion(h1, h2, y)
+        loss.backward()
+        if self.opt is not None:
+            self.opt.step() #performs a parameter update based on the current gradient
+        return loss.data
 
 
 def make_model(vocab, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):

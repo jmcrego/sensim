@@ -10,8 +10,8 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 from src.dataset import Vocab, DataSet, OpenNMTTokenizer
-from src.model import make_model, ComputeLossMsk
-from src.optim import NoamOpt, LabelSmoothing
+from src.model import make_model, ComputeLossMsk, ComputeLossSim
+from src.optim import NoamOpt, LabelSmoothing, CosineSim
 
 class Trainer():
 
@@ -25,17 +25,9 @@ class Trainer():
         self.cuda = opts.cfg['cuda']
         self.n_steps_so_far = 0
         self.average_last_n = opts.train['average_last_n']
-        self.steps = []
-        if 'msk_step' in opts.train and 'every' in opts.train['msk_step'] and opts.train['msk_step']['every'] > 0:
-            self.steps.append('msk')
-            self.msk_step = opts.train['msk_step']
-        if 'sim_step' in opts.train and 'every' in opts.train['sim_step'] and opts.train['sim_step']['every'] > 0:
-            self.steps.append('sim')
-            self.sim_step = opts.train['sim_step']
-#        if 'ali_step' in opts.train and 'prob' in opts.train['tran_step'] and opts.train['tran_step']['prob'] > 0:
-#            self.steps.append('tran')
-#            self.tran_step = opts.train['tran_step']
-        logging.debug('steps: {}'.format(self.steps))
+        self.msk_step = opts.train['msk_step']
+        self.sim_step = opts.train['sim_step']
+        self.ali_step = opts.train['ali_step']
         V = len(self.vocab)
         N = opts.cfg['num_layers']
         d_model = opts.cfg['hidden_size']
@@ -51,12 +43,14 @@ class Trainer():
         eps = opts.cfg['eps']
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         self.optimizer = NoamOpt(d_model, factor, warmup_steps, torch.optim.Adam(self.model.parameters(), lr=lrate, betas=(beta1, beta2), eps=eps))
-        self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
+        self.criterion_msk = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
+        self.criterion_sim = CosineSim(tok1_idx=self.vocab.idx_cls, tok2_idx=self.vocab.idx_sep)
         if self.cuda:
             self.model.cuda()
             self.criterion.cuda()
         self.load_checkpoint() #loads if exists
-        self.loss_msk = ComputeLossMsk(self.model.generator, self.criterion,self.optimizer)
+        self.loss_msk = ComputeLossMsk(self.model.generator, self.criterion_msk, self.optimizer)
+        self.loss_sim = ComputeLossSim(self.criterion_sim, self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
 
 
@@ -104,19 +98,18 @@ class Trainer():
         n_words_so_far = 0
         sum_loss_so_far = 0.0
         start = time.time()
-        for batch, mono_or_bitext in self.data_train:
+        for step, batch, batch_tgt, batch_isparallel in self.data_train:
+            #step is 'msk', 'sim', 'ali'
+            #batch [batch_size, max_len] contain word_idx
+            #batch_tgt [batch_size, max_len] contain word_idx of tgt words if step == 'ali'
+            #batch_parallel [batch_size] contains +1.0 (parallel) or -1.0 (not parallel) sentences
+            self.model.train()
             ###
             ### run step
             ###
-            self.model.train()
-            step = self.steps[self.n_steps_so_far % len(self.steps)]
-            y = torch.from_numpy(batch)
-            if self.cuda:
-                y = y.cuda()
-
             if step == 'msk':
                 x, x_mask, y_mask, n_topredict = self.msk_batch_cuda(batch)
-                #x contains the true words after some masked (<msk>, random, same)
+                #x contains the true words in batch after some masked (<msk>, random, same)
                 #x_mask contains true for padded words, false for not padded words in batch
                 #y_mask contains the source true words to predict of masked words, <pad> otherwise
                 if n_topredict == 0: #nothing to predict
@@ -125,7 +118,13 @@ class Trainer():
                 h = self.model.forward(x,x_mask) 
                 loss = self.loss_msk(h, y_mask, n_topredict)
             elif step == 'sim':
-                continue
+                x, x_mask, y = self.sim_batch_cuda(batch,batch_parallel)
+                #x contains the true words in batch
+                #x_mask contains true for padded words, false for not padded words in batch
+                #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
+                h = self.model.forward(x,x_mask)
+                loss = self.loss_sim(h, y)
+                n_topredict = 1
             elif step == 'ali':
                 continue
             else:
@@ -173,7 +172,6 @@ class Trainer():
         start = time.time()
         for batch, batch_len in self.data_valid:
             batch = np.array(batch)
-            step = self.steps[n_steps_so_far % len(self.steps)]
             y = torch.from_numpy(batch)
             x, x_mask = self.mask_batch(batch, step) 
             if self.cuda:
@@ -266,6 +264,17 @@ class Trainer():
 
         return x, x_mask, y_mask, n_topredict
 
+
+    def sim_batch_cuda(self, batch, y):
+        x = torch.as_tensor(batch) #[batch_size, max_len] the original words with padding
+        x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
+        y = torch.as_tensor(y)
+        if self.cuda:
+            x = x.cuda()
+            x_mask = x_mask.cuda()
+            y = y.cuda()
+
+        return x, x_mask, y
 
 
 

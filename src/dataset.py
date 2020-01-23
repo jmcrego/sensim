@@ -125,8 +125,11 @@ class DataSet():
         self.allow_shuffle = allow_shuffle
         self.single_epoch = single_epoch
         self.batches = []
-
-        data = [[],[]] #data[0] is for mono texts, data[1] is for bitexts
+        max_num_examples = 1000 #this is only used for debugging (set to 0 to avoid)
+        data_msk = [] ### msk examples from bitexts
+        data_sim = [] ### sim examples from bitexts
+        data_ali = [] ### ali examples from bitexts
+        data_mon = [] ### msk examples from monolingual data
         for l in range(len(files)):
             if len(files[l])==2:
                 fsrc = files[l][0]
@@ -144,6 +147,7 @@ class DataSet():
 
                 n = 0
                 m = 0
+                prev_snt_tgt_idx = []
                 for ls, lt in zip(fs,ft):
                     n += 1
                     src_idx = [vocab[s] for s in token.tokenize(ls)]
@@ -151,17 +155,30 @@ class DataSet():
                     if max_length > 0 and (len(src_idx) + len(tgt_idx)) > max_length: 
                         continue
                     m += 1
+                    #src sentence
+                    snt_src_idx = []
+                    snt_src_idx.append(idx_bos)
+                    snt_src_idx.extend(src_idx)
+                    snt_src_idx.append(idx_eos)
+                    #tgt sentence
+                    snt_tgt_idx = []
+                    snt_tgt_idx.append(idx_bos)
+                    snt_tgt_idx.extend(tgt_idx)
+                    snt_tgt_idx.append(idx_eos)
+                    #snt_tgt sentence
                     snt_idx = []
                     snt_idx.append(idx_cls)
-                    snt_idx.append(idx_bos)
-                    snt_idx.extend(src_idx)
-                    snt_idx.append(idx_eos)
+                    snt_idx.append(snt_src_idx)
                     snt_idx.append(idx_sep)
-                    snt_idx.append(idx_bos)
-                    snt_idx.extend(tgt_idx)
-                    snt_idx.append(idx_eos)
-                    data[1].append(snt_idx)
-                    #if m >= 10000: break
+                    snt_idx.extend(snt_tgt_idx)
+
+                    ### add to data lists
+                    data_msk.append(snt_idx) ### [<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <t1>, <t2>, ..., <tn>, <eos>]
+                    data_sim.append([snt_idx, 1.0]) ### [<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <t1>, <t2>, ..., <tn>, <eos>], 1.0
+                    data_ali.append([snt_src_idx, snt_tgt_idx, 1.0]) ### [<bos>, <s1>, <s2>, ..., <sn>, <eos>], [<bos>, <t1>, <t2>, ..., <tn>, <eos>], 1.0
+
+                    prev_snt_tgt_idx = snt_tgt_idx
+                    if max_num_examples > 0 and m >= max_num_examples: break
                 logging.info('read {} out of {} sentence pairs from files [{}, {}]'.format(m,n,fsrc,ftgt))
             else:
                 fsrc = files[l][0]
@@ -184,35 +201,109 @@ class DataSet():
                     snt_idx.append(idx_bos)
                     snt_idx.extend(src_idx)
                     snt_idx.append(idx_eos)
-                    data[0].append(snt_idx)
-                    #if m >= 10000: break
+                    data_mon.append(snt_idx) ### [<cls>, <bos>, <w1>, <w2>, ..., <wn>, <eos>]
+                    if max_num_examples > 0 and m >= max_num_examples: break
                 logging.info('read {} out of {} sentences from file [{}]'.format(m,n,fsrc))
-        logging.info('read {} single sentences, {} sentence pairs'.format(len(data[0]), len(data[1])))
+        logging.info('read {} single sentences, {} sentence pairs'.format(len(data_mon), len(data_msk)))
         ###
         ### building batches with all data read
+        ### type of batches:
+        ### 'msk' : mono/bitext data
+        ### 'sim' : bitext data
+        ### 'ali' : bitext data
         ###
-        self.build_batches(data[0], 1)
-        self.build_batches(data[1], 2)
+        self.build_batches()
         logging.info('found {} batches'.format(len(self.batches)))
 
 
-    def build_batches(self, data, one_or_two):
-        indexs = [i for i in range(len(data))] #indexs in original order
+    def build_batches(self):
+        ###
+        ### mon 
+        ###
+        indexs = [i for i in range(len(data_mon))] #indexs in original order
         if self.allow_shuffle:
             logging.debug('sorting data according to sentence size to minimize padding')
-            data_len = [len(x) for x in data]
+            data_len = [len(x) for x in data_mon]
             indexs = np.argsort(data_len) #indexs sorted by length of data
 
         curr_batch = []
         for i in indexs:
-            curr_batch.append(data[i])
+            curr_batch.append(data_msk[i])
             if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example
                 #add padding
                 max_len = max([len(s) for s in curr_batch])
                 for k in range(len(curr_batch)):
                     curr_batch[k] += [idx_pad]*(max_len-len(curr_batch[k]))
-                self.batches.append([np.array(curr_batch),one_or_two])
+                self.batches.append(['mon', curr_batch, [], []]) #step, batch, batch_tgt, batch_isparallel
                 curr_batch = []
+        ###
+        ### msk 
+        ###
+        indexs = [i for i in range(len(data_msk))] #indexs in original order
+        if self.allow_shuffle:
+            logging.debug('sorting data according to sentence size to minimize padding')
+            data_len = [len(x) for x in data_msk]
+            indexs = np.argsort(data_len) #indexs sorted by length of data
+
+        curr_batch = []
+        for i in indexs:
+            curr_batch.append(data_msk[i])
+            if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example
+                #add padding
+                max_len = max([len(s) for s in curr_batch])
+                for k in range(len(curr_batch)):
+                    curr_batch[k] += [idx_pad]*(max_len-len(curr_batch[k]))
+                self.batches.append(['msk', curr_batch, [], []]) #step, batch, batch_tgt, batch_isparallel
+                curr_batch = []
+        ###
+        ### sim
+        ###
+        indexs = [i for i in range(len(data_sim))] #indexs in original order
+        if self.allow_shuffle:
+            logging.debug('sorting data according to sentence size to minimize padding')
+            data_len = [len(x) for x in data_sim[0]]
+            indexs = np.argsort(data_len) #indexs sorted by length of sentences
+
+        curr_batch = []
+        curr_batch_isparallel = []
+        for i in indexs:
+            curr_batch.append(data_sim[i][0])
+            curr_batch_isparallel.append(data_sim[i][1])
+            if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example
+                #add padding
+                max_len = max([len(s) for s in curr_batch])
+                for k in range(len(curr_batch)):
+                    curr_batch[k] += [idx_pad]*(max_len-len(curr_batch[k]))
+                self.batches.append(['sim', curr_batch, [], curr_batch_isparallel]) #step, batch, batch_tgt, batch_isparallel
+                curr_batch = []
+                curr_batch_isparallel = []
+        ###
+        ### ali
+        ###
+        indexs = [i for i in range(len(data_ali))] #indexs in original order
+        if self.allow_shuffle:
+            logging.debug('sorting data according to sentence size to minimize padding')
+            data_len = [len(x) for x in data_ali[0]]
+            indexs = np.argsort(data_len) #indexs sorted by length of source sentence
+
+        curr_batch_src = []
+        curr_batch_tgt = []
+        curr_batch_isparallel = []
+        for i in indexs:
+            curr_batch_src.append(data_ali[i][0])
+            curr_batch_tgt.append(data_ali[i][1])
+            curr_batch_isparallel.append(data_ali[2])
+            if len(curr_batch_src) == self.batch_size or i == len(indexs)-1: #full batch or last example
+                #add padding
+                max_len_src = max([len(s) for s in curr_batch_src])
+                max_len_tgt = max([len(t) for t in curr_batch_tgt])
+                for k in range(len(curr_batch_src)):
+                    curr_batch_src[k] += [idx_pad]*(max_len_src-len(curr_batch_src[k]))
+                    curr_batch_tgt[k] += [idx_pad]*(max_len_tgt-len(curr_batch_tgt[k]))
+                self.batches.append(['ali', curr_batch_src, curr_batch_tgt, curr_batch_isparallel]) #step, batch, batch_tgt, batch_isparallel
+                curr_batch_src = []
+                curr_batch_tgt = []
+                curr_batch_isparallel = []
 
 
     def __len__(self):
