@@ -10,7 +10,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 from src.dataset import Vocab, DataSet, OpenNMTTokenizer
-from src.model import make_model, ComputeLoss, ComputeLossMsk
+from src.model import make_model, ComputeLossMsk
 from src.optim import NoamOpt, LabelSmoothing
 
 class Trainer():
@@ -199,6 +199,34 @@ class Trainer():
                 sum_loss_so_far = 0.0
                 start = time.time()
         logging.info('Valid Loss: {:.4f}'.format(sum_loss_valid / n_words_valid))
+
+
+    def average(self):
+        files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
+        if len(files) == 0:
+            logging.info('no checkpoint available')
+            return
+        #read models
+        models = []
+        for file in files:
+            m = self.model.clone()
+            checkpoint = torch.load(file)
+            m.load_state_dict(checkpoint['model'])
+            models.append(m)
+            logging.info('read {}'.format(file))
+        #create mout 
+        mout = self.model.clone()
+        for ps in zip(*[m.params() for m in [mout] + models]):
+            p[0].copy_(torch.sum(*ps[1:]) / len(ps[1:]))
+        fout = self.dir + '/checkpoint.averaged.pth'
+        state = {
+            'n_steps_so_far': mout.n_steps_so_far,
+            'optimizer': mout.optimizer.state_dict(),
+            'model': mout.model.state_dict()
+        }
+        #save mout into fout
+        torch.save(state, fout)
+        logging.info('averaged {} models into {}'.format(len(files), fout))
 
 
     def msk_batch_cuda(self, batch):

@@ -155,35 +155,26 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class ComputeLoss:
-    def __init__(self, generator, criterion, opt=None):
-        self.generator = generator
-        self.criterion = criterion
-        self.opt = opt
-
-    def __call__(self, x, y, norm):
-        if self.opt is not None:
-            self.opt.optimizer.zero_grad()
-        x = self.generator(x) # project x softmax
-        loss = self.criterion(x.contiguous().view(-1, x.size(-1)), y.contiguous().view(-1)) / norm
-        loss.backward()
-        if self.opt is not None:
-            self.opt.step() #performs a parameter update based on the current gradient
-        return loss.data * norm
-
 class ComputeLossMsk:
     def __init__(self, generator, criterion, opt=None):
         self.generator = generator
         self.criterion = criterion
         self.opt = opt
 
-    def __call__(self, h, y, n_topredict): #y is all masked with <pad> except for tokens to predict for which it contains the true words
+    def __call__(self, h, y, n_topredict): 
         if self.opt is not None:
             self.opt.optimizer.zero_grad()
         x_hat = self.generator(h) # project x softmax 
         #x_hat [batch_size, max_len, |vocab|]
         #y     [batch_size, max_len]
-        loss = self.criterion(x_hat.contiguous().view(-1, x_hat.size(-1)), y.contiguous().view(-1)) / n_topredict
+        x_hat = x_hat.contiguous().view(-1, x_hat.size(-1))
+        y = y.contiguous().view(-1)
+        #x_hat [batch_size*max_len, |vocab|]
+        #y     [batch_size*max_len]
+        n_ok = ((y == torch.argmax(x_hat, dim=1)) * (y != self.criterion.padding_idx)).sum()
+        print('batch {}/{} acc = {:.2f}'.format(n_ok,n_topredict,100.0*n_ok/n_topredict))
+
+        loss = self.criterion(x_hat, y) / n_topredict
         loss.backward()
         if self.opt is not None:
             self.opt.step() #performs a parameter update based on the current gradient
