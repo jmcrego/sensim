@@ -183,9 +183,7 @@ class ComputeLossMsk:
         x_hat = self.generator(h) # project x softmax 
         #x_hat [batch_size, max_len, |vocab|]
         #y     [batch_size, max_len]
-        x_hat_linear = x_hat.contiguous().view(-1, x_hat.size(-1))
-        y_linear = y.contiguous().view(-1)
-        loss = self.criterion(x_hat_linear, y_linear) / n_topredict
+        loss = self.criterion(x_hat.contiguous().view(-1, x_hat.size(-1)), y.contiguous().view(-1)) / n_topredict
         loss.backward()
         if self.opt is not None:
             self.opt.step() #performs a parameter update based on the current gradient
