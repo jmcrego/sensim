@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import torch
 import torch.nn as nn
@@ -187,29 +188,34 @@ class ComputeLossSim:
         self.criterion = criterion
         self.opt = opt
 
-    def __call__(self, h, y): 
-        print('h',h.size())
-        print('y',y.size())
-        #h [batch_size, max_len, embedding_size]
-        #y [batch_size, max_len]
+    def __call__(self, x, h, y): 
+        #x [batch_size, max_len] indexes of words
+        #h [batch_size, max_len, embedding_size] embeddings of words after encoder
+        #y [batch_size, max_len] parallel(1.0)/non_parallel(-1.0) value of each sentence
         if self.opt is not None:
             self.opt.optimizer.zero_grad()
-        h = h.contiguous().view(-1, h.size(-1))
-        y = y.contiguous().view(-1)
-        print('h',h.size())
-        print('y',y.size())
-        #h [batch_size*max_len, embedding_size]
-        #y [batch_size*max_len]
 
-        h1_mask = (y == self.criterion.tok1_idx)
-        h2_mask = (y == self.criterion.tok2_idx)
-        h1 = torch.masked_select(h, h1_mask)
-        h2 = torch.masked_select(h, h2_mask)
+        #print('x',x.size())
+        #print('h',h.size())
+        #print('y',y.size())
+
+        x1_mask = (x == self.criterion.tok1_idx).unsqueeze(2)
+        #print('x1_mask',x1_mask.size())
+        #print('x1_mask[0]',x1_mask[0])
+        x2_mask = (x == self.criterion.tok2_idx).unsqueeze(2)
+        #print('x2_mask',x2_mask.size())
+        #print('x2_mask[0]',x2_mask[0])
+
+        h1 = torch.masked_select(h, x1_mask).view(h.size(0),h.size(2))
+        #print('h1',h1.size())
+        h2 = torch.masked_select(h, x2_mask).view(h.size(0),h.size(2))
+        #print('h2',h2.size())
 
         loss = self.criterion(h1, h2, y)
         loss.backward()
         if self.opt is not None:
             self.opt.step() #performs a parameter update based on the current gradient
+
         return loss.data
 
 

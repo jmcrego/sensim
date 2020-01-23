@@ -55,7 +55,9 @@ class Trainer():
 
 
         logging.info('Read Train data')
-        self.data_train = DataSet(opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,single_epoch=False)
+        sim_uneven = opts.train['sim_step']['uneven']
+        ali_uneven = opts.train['ali_step']['uneven']
+        self.data_train = DataSet(opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],sim_uneven=sim_uneven,ali_uneven=ali_uneven,allow_shuffle=True,single_epoch=False)
 
         if 'valid' in opts.train:
             logging.info('read Valid data')
@@ -118,12 +120,12 @@ class Trainer():
                 h = self.model.forward(x,x_mask) 
                 loss = self.loss_msk(h, y_mask, n_topredict)
             elif step == 'sim':
-                x, x_mask, y = self.sim_batch_cuda(batch,batch_parallel)
+                x, x_mask, y = self.sim_batch_cuda(batch,batch_isparallel)
                 #x contains the true words in batch
                 #x_mask contains true for padded words, false for not padded words in batch
                 #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
                 h = self.model.forward(x,x_mask)
-                loss = self.loss_sim(h, y)
+                loss = self.loss_sim(x, h, y)
                 n_topredict = 1
             elif step == 'ali':
                 continue
@@ -228,6 +230,7 @@ class Trainer():
 
 
     def msk_batch_cuda(self, batch):
+        batch = np.asarray(batch)
         x = torch.as_tensor(batch) #[batch_size, max_len] the original words with padding
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
         y_mask = x.clone() #[batch_size, max_len]
@@ -266,7 +269,9 @@ class Trainer():
 
 
     def sim_batch_cuda(self, batch, y):
-        x = torch.as_tensor(batch) #[batch_size, max_len] the original words with padding
+        batch = np.asarray(batch)
+        y = np.asarray(y)
+        x = torch.from_numpy(batch) #[batch_size, max_len] the original words with padding
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
         y = torch.as_tensor(y)
         if self.cuda:

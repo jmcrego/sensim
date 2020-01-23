@@ -74,16 +74,14 @@ class LabelSmoothing(nn.Module):
 class CosineSim(nn.Module):
     def __init__(self, tok1_idx, tok2_idx, margin=0.0):
         super(CosineSim, self).__init__()
-        self.criterion = nn.CosineEmbeddingLoss(margin=margin, size_average=None, reduce=None, reduction='none')
+        self.criterion = nn.CosineEmbeddingLoss(margin=margin, size_average=None, reduce=None, reduction='mean')
         self.tok1_idx = tok1_idx
         self.tok2_idx = tok2_idx
         logging.debug('built criterion (cosine)')
         
     def forward(self, h1, h2, target):
-        res = self.criterion(h1, h2, target)
-        print('res',res.size())
         ### mean over h1[tok1_idx] and h2[tok2_idx]
-        return res
+        return self.criterion(h1, h2, target)
 
 
 
