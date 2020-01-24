@@ -98,7 +98,6 @@ class Trainer():
         sum_loss_so_far = 0.0
         start = time.time()
         for step, batch in self.data_train:
-            print(step)
             self.model.train()
             ###
             ### run step
