@@ -180,7 +180,7 @@ class DataSet():
     def build_mon_batches(self):
         self.batches_mon = []
         dist = 0.0
-        if 'msk_mon' in self.steps and 'dist' in self.steps['msk_mon']: dist = self.steps['msk_mon']['dist']
+        if 'mon' in self.steps and 'dist' in self.steps['mon']: dist = self.steps['mon']['dist']
         if dist == 0.0: return
 
         indexs = [i for i in range(len(self.data_mono))] #indexs in original order
@@ -193,21 +193,22 @@ class DataSet():
             index = indexs[i]
             snt_idx = self.data_mono[index]
             snt_idx.insert(0,idx_cls)
-            curr_batch.append(snt_idx)
+            curr_batch.append(snt_idx) #<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>
             if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example                
                 self.batches_mon.append(self.add_padding(curr_batch)) 
                 curr_batch = []
+        logging.info('built {} mon batches'.format(len(self.batches_mon)))
 
 
-    def build_msk_batches(self):
-        self.batches_msk = []
+    def build_par_batches(self):
+        self.batches_par = []
         dist = 0.0
-        if 'msk_par' in self.steps and 'dist' in self.steps['msk_par']: dist = self.steps['msk_par']['dist']
+        if 'par' in self.steps and 'dist' in self.steps['par']: dist = self.steps['par']['dist']
         if dist == 0.0: return
 
         indexs = [i for i in range(len(self.data_btxt))] #indexs in original order
         if self.allow_shuffle:
-            logging.debug('sorting data_msk to minimize padding')
+            logging.debug('sorting data_par to minimize padding')
             data_len = [len(x[0])+len(x[1]) for x in self.data_btxt]
             indexs = np.argsort(data_len) #indexs sorted by length of data
         curr_batch = []
@@ -220,10 +221,11 @@ class DataSet():
             snt_idx.extend(src_idx)
             snt_idx.append(idx_sep)
             snt_idx.extend(tgt_idx)
-            curr_batch.append(snt_idx)
+            curr_batch.append(snt_idx) #<cls> <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <t1>, <t2>, ..., <tn>, <eos>
             if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example                
-                self.batches_msk.append(self.add_padding(curr_batch)) 
+                self.batches_par.append(self.add_padding(curr_batch)) 
                 curr_batch = []
+        logging.info('built {} par batches'.format(len(self.batches_par)))
 
 
     def build_sim_batches(self):
@@ -254,12 +256,13 @@ class DataSet():
             snt_idx.extend(src_idx)
             snt_idx.append(idx_sep)
             snt_idx.extend(tgt_idx)
-            curr_batch.append(snt_idx)
+            curr_batch.append(snt_idx) #<cls> <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <t1>, <t2>, ..., <tn>, <eos>
             curr_batch_isparallel.append(isparallel)
             if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example                
                 self.batches_sim.append([self.add_padding(curr_batch),curr_batch_isparallel]) 
                 curr_batch = []
                 curr_batch_isparallel = []
+        logging.info('built {} sim batches'.format(len(self.batches_sim)))
 
 
     def build_ali_batches(self):
@@ -295,6 +298,7 @@ class DataSet():
                 curr_batch_src = []
                 curr_batch_tgt = []
                 curr_batch_isparallel = []
+        logging.info('built {} ali batches'.format(len(self.batches_ali)))
 
 
     def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0, allow_shuffle=False, infinite=False):
@@ -303,10 +307,9 @@ class DataSet():
         self.max_length = max_length
         self.batch_size = batch_size
         self.steps = steps
-        self.steps_run = defaultdict(int)
-        self.read_data(files,token,vocab,0) #1000 is only used for debugging (delete to avoid filtering)
+        self.read_data(files,token,vocab,1000) #1000 is only used for debugging (delete to avoid filtering)
         self.build_mon_batches()
-        self.build_msk_batches()
+        self.build_par_batches()
         self.build_sim_batches()
         self.build_ali_batches()
 
@@ -317,27 +320,23 @@ class DataSet():
         if not self.infinite: 
             for i in range(len(self.batches_mon)):
                 yield 'mon', self.batches_mon[i]
-                self.steps_run['mon'] += 1
-            for i in range(len(self.batches_msk)):
-                yield 'msk', self.batches_msk[i]
-                self.steps_run['msk'] += 1
+            for i in range(len(self.batches_par)):
+                yield 'par', self.batches_par[i]
             for i in range(len(self.batches_sim)):
                 yield 'sim', self.batches_sim[i]
-                self.steps_run['ali'] += 1
             for i in range(len(self.batches_ali)):
                 yield 'ali', self.batches_ali[i]
-                self.steps_run['ali'] += 1
             return
 
         ### if training i loop forever follwing the distributions indicated by self.steps['dist']
-        dist_mon = self.steps['msk_mon']['dist']
+        dist_mon = self.steps['mon']['dist']
         if dist_mon > 0.0 and len(self.batches_mon) == 0:
             logging.error('no batches_mon entries and dist_mon={:.2f}'.format(dist_mon))
             sys.exit()
 
-        dist_msk = self.steps['msk_par']['dist']
-        if dist_msk > 0.0 and len(self.batches_msk) == 0:
-            logging.error('no batches_msk entries and dist_msk={:.2f}'.format(dist_msk))
+        dist_par = self.steps['par']['dist']
+        if dist_par > 0.0 and len(self.batches_par) == 0:
+            logging.error('no batches_par entries and dist_par={:.2f}'.format(dist_par))
             sys.exit()
 
         dist_sim = self.steps['sim']['dist']
@@ -351,17 +350,17 @@ class DataSet():
             sys.exit()
 
         indexs_mon = [i for i in range(len(self.batches_mon))]
-        indexs_msk = [i for i in range(len(self.batches_msk))]
+        indexs_par = [i for i in range(len(self.batches_par))]
         indexs_sim = [i for i in range(len(self.batches_sim))]
         indexs_ali = [i for i in range(len(self.batches_ali))]
         ### do shuffle if required
         if self.allow_shuffle: 
             shuffle(indexs_mon)
-            shuffle(indexs_msk)
+            shuffle(indexs_par)
             shuffle(indexs_sim)
             shuffle(indexs_ali)
         i_mon = 0
-        i_msk = 0
+        i_par = 0
         i_sim = 0
         i_ali = 0
         while True: #### infinite loop
@@ -370,34 +369,24 @@ class DataSet():
                 if i_mon >= len(indexs_mon):
                     i_mon = 0
                 yield 'mon', self.batches_mon[indexs_mon[i_mon]]
-                self.steps_run['mon'] += 1
                 i_mon += 1
 
-            elif p < dist_mon+dist_msk:
-                if i_msk >= len(indexs_msk):
-                    i_msk = 0
-                yield 'msk', self.batches_msk[indexs_msk[i_msk]]
-                self.steps_run['msk'] += 1
-                i_msk += 1
+            elif p < dist_mon+dist_par:
+                if i_par >= len(indexs_par):
+                    i_par = 0
+                yield 'par', self.batches_par[indexs_par[i_par]]
+                i_par += 1
 
-            elif p < dist_mon+dist_msk+dist_sim:
+            elif p < dist_mon+dist_par+dist_sim:
                 if i_sim >= len(indexs_sim):
                     i_sim = 0
                 yield 'sim', self.batches_sim[indexs_sim[i_sim]]
-                self.steps_run['sim'] += 1
                 i_sim += 1
 
-            elif p < dist_mon+dist_msk+dist_sim+dist_ali:
+            elif p < dist_mon+dist_par+dist_sim+dist_ali:
                 if i_ali >= len(indexs_ali):
                     i_ali = 0
                 yield 'ali', self.batches_ali[indexs_ali[i_ali]]
-                self.steps_run['ali'] += 1
                 i_ali += 1
-
-    def info(self):
-        total = 0
-        for step in self.steps_run:
-            total += self.steps_run[step]
-        return '[mon:{:.2f} par:{:.2f} sim:{:.2f} ali:{:.2f}]'.format(self.steps_run['mon']/total, self.steps_run['msk']/total, self.steps_run['sim']/total, self.steps_run['ali']/total)
 
 

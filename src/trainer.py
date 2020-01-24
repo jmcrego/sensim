@@ -6,6 +6,7 @@ import random
 import sys
 import glob
 import os
+from collections import defaultdict
 from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
@@ -96,13 +97,16 @@ class Trainer():
         logging.info('Start train n_steps_so_far={}'.format(self.n_steps_so_far))
         n_words_so_far = 0
         sum_loss_so_far = 0.0
+        sum_loss_so_far_step = defaultdict(float)
+        n_words_so_far_step = defaultdict(int)
+        steps_run = defaultdict(int)
         start = time.time()
         for step, batch in self.data_train:
             self.model.train()
             ###
             ### run step
             ###
-            if step == 'msk' or step == 'mon':
+            if step == 'par' or step == 'mon':
                 x, x_mask, y_mask, n_topredict = self.msk_batch_cuda(batch,step)
                 #x contains the true words in batch after some masked (<msk>, random, same)
                 #x_mask contains true for padded words, false for not padded words in batch
@@ -129,11 +133,14 @@ class Trainer():
             self.n_steps_so_far += 1
             n_words_so_far += n_topredict
             sum_loss_so_far += loss 
+            n_words_so_far_step[step] += n_topredict
+            sum_loss_so_far_step[step] += loss 
+            steps_run[step] += 1
             ###
             ### report
             ###
             if self.report_every_steps > 0 and self.n_steps_so_far % self.report_every_steps == 0:
-                logging.info("Train step: {} Loss: {:.4f} Tokens/sec: {:.1f} {}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start), self.data_train.info())) 
+                logging.info("Train step: {} Loss: {:.4f} Tokens/sec: {:.1f} {}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
                 n_words_so_far = 0
                 sum_loss_so_far = 0.0
                 start = time.time()
@@ -229,13 +236,13 @@ class Trainer():
         y_mask = x.clone() #[batch_size, max_len]
 
         if step == 'mon':
-            prob = self.steps['msk_mon']['prob']
-            same = self.steps['msk_mon']['same']
-            rand = self.steps['msk_mon']['rand']
+            prob = self.steps['mon']['prob']
+            same = self.steps['mon']['same']
+            rand = self.steps['mon']['rand']
         else:
-            prob = self.steps['msk_par']['prob']
-            same = self.steps['msk_par']['same']
-            rand = self.steps['msk_par']['rand']
+            prob = self.steps['par']['prob']
+            same = self.steps['par']['same']
+            rand = self.steps['par']['rand']
         mask = 1.0 - same - rand
         if mask <= 0.0:
             logging.error('p_mask={} l<= zero'.format(mask))
@@ -279,8 +286,20 @@ class Trainer():
 
         return x, x_mask, y
 
+    def stats(self, n_words_so_far_step,sum_loss_so_far_step,steps_run):
+        total_steps = 0
+        for step in steps_run:
+            total_steps += steps_run[step]
+        if total_steps == 0: 
+            return ''
 
+        desc = []
+        for step in steps_run:
+            if n_words_so_far_step[step] == 0:
+                continue
+            desc.append('{} steps:{:.2f} loss:{:.3f}'.format(step,steps_run[step]/total_steps,sum_loss_so_far_step[step]/n_words_so_far_step[step]))
 
+        return '[{}]'.format(' '.join(desc))
 
 
 
