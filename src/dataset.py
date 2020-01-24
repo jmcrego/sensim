@@ -398,6 +398,6 @@ class DataSet():
         total = 0
         for step in self.steps_run:
             total += self.steps_run[step]
-        return '[#mon:{:.2f} #par:{:.2f} #sim:{:.2f} #ali:{:.2f}]'.format(self.steps_run['mon']/total, self.steps_run['msk']/total, self.steps_run['sim']/total, self.steps_run['ali']/total)
+        return '[mon:{:.2f} par:{:.2f} sim:{:.2f} ali:{:.2f}]'.format(self.steps_run['mon']/total, self.steps_run['msk']/total, self.steps_run['sim']/total, self.steps_run['ali']/total)
 
 
