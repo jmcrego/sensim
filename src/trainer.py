@@ -25,9 +25,7 @@ class Trainer():
         self.cuda = opts.cfg['cuda']
         self.n_steps_so_far = 0
         self.average_last_n = opts.train['average_last_n']
-        self.msk_step = opts.train['msk_step']
-        self.sim_step = opts.train['sim_step']
-        self.ali_step = opts.train['ali_step']
+        self.steps = opts.train['steps']
         V = len(self.vocab)
         N = opts.cfg['num_layers']
         d_model = opts.cfg['hidden_size']
@@ -55,13 +53,11 @@ class Trainer():
 
 
         logging.info('Read Train data')
-        sim_uneven = opts.train['sim_step']['uneven']
-        ali_uneven = opts.train['ali_step']['uneven']
-        self.data_train = DataSet(opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],sim_uneven=sim_uneven,ali_uneven=ali_uneven,allow_shuffle=True,single_epoch=False)
+        self.data_train = DataSet(self.steps,opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,infinite=True)
 
         if 'valid' in opts.train:
             logging.info('read Valid data')
-            self.data_valid = DataSet(opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,single_epoch=True)
+            self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,infinite=False)
         else: 
             self.data_valid = None
 
@@ -100,17 +96,14 @@ class Trainer():
         n_words_so_far = 0
         sum_loss_so_far = 0.0
         start = time.time()
-        for step, batch, batch_tgt, batch_isparallel in self.data_train:
-            #step is 'msk', 'sim', 'ali'
-            #batch [batch_size, max_len] contain word_idx
-            #batch_tgt [batch_size, max_len] contain word_idx of tgt words if step == 'ali'
-            #batch_parallel [batch_size] contains +1.0 (parallel) or -1.0 (not parallel) sentences
+        for step, batch in self.data_train:
+            print(step)
             self.model.train()
             ###
             ### run step
             ###
-            if step == 'msk':
-                x, x_mask, y_mask, n_topredict = self.msk_batch_cuda(batch)
+            if step == 'msk' or step == 'mon':
+                x, x_mask, y_mask, n_topredict = self.msk_batch_cuda(batch,step)
                 #x contains the true words in batch after some masked (<msk>, random, same)
                 #x_mask contains true for padded words, false for not padded words in batch
                 #y_mask contains the source true words to predict of masked words, <pad> otherwise
@@ -120,7 +113,7 @@ class Trainer():
                 h = self.model.forward(x,x_mask) 
                 loss = self.loss_msk(h, y_mask, n_topredict)
             elif step == 'sim':
-                x, x_mask, y = self.sim_batch_cuda(batch,batch_isparallel)
+                x, x_mask, y = self.sim_batch_cuda(batch[0],batch[1]) #batch[0] is the batch, batch[1] is the batch_isparallel
                 #x contains the true words in batch
                 #x_mask contains true for padded words, false for not padded words in batch
                 #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
@@ -152,7 +145,7 @@ class Trainer():
             ###
             ### validation
             ###
-            if self.data_valid is not None and len(self.data_valid) and self.validation_every_steps > 0 and self.n_steps_so_far % self.validation_every_steps == 0:
+            if self.data_valid is not None and self.validation_every_steps > 0 and self.n_steps_so_far % self.validation_every_steps == 0:
                 self.validation()
             ###
             ### stop training
@@ -194,7 +187,7 @@ class Trainer():
             ### report
             ###
             if self.report_every_steps > 0 and n_steps_so_far % self.report_every_steps == 0:
-                logging.info("Valid step: {}/{} Loss: {:.4f} Tokens/sec: {:.1f}".format(n_steps_so_far, len(self.data_valid), sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start))) 
+#                logging.info("Valid step: {}/{} Loss: {:.4f} Tokens/sec: {:.1f}".format(n_steps_so_far, len(self.data_valid), sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start))) 
                 n_words_so_far = 0
                 sum_loss_so_far = 0.0
                 start = time.time()
@@ -229,15 +222,20 @@ class Trainer():
         logging.info('averaged {} models into {}'.format(len(files), fout))
 
 
-    def msk_batch_cuda(self, batch):
+    def msk_batch_cuda(self, batch, step):
         batch = np.asarray(batch)
-        x = torch.as_tensor(batch) #[batch_size, max_len] the original words with padding
+        x = torch.from_numpy(batch) #[batch_size, max_len] the original words with padding
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
         y_mask = x.clone() #[batch_size, max_len]
 
-        prob = self.msk_step['prob']
-        same = self.msk_step['same']
-        rand = self.msk_step['rand']
+        if step == 'mon':
+            prob = self.steps['msk_mon']['prob']
+            same = self.steps['msk_mon']['same']
+            rand = self.steps['msk_mon']['rand']
+        else:
+            prob = self.steps['msk_par']['prob']
+            same = self.steps['msk_par']['same']
+            rand = self.steps['msk_par']['rand']
         mask = 1.0 - same - rand
         if mask <= 0.0:
             logging.error('p_mask={} l<= zero'.format(mask))

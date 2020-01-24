@@ -9,9 +9,11 @@ train:
 max_length: 160
 batch_size: [32, 4]
 train_steps: 1000000
-msk_step: { prob: 0.15, same: 0.1, rand: 0.1 }
-sim_step: { uneven: 0.5 }
-ali_step: { uneven: 0.5 }
+steps: 
+  msk_mon: { dist: 0.2, prob: 0.15, same: 0.1, rand: 0.1 }
+  msk_par: { dist: 0.3, prob: 0.15, same: 0.1, rand: 0.1 }
+  sim: { dist: 0.3, p_uneven: 0.5 }
+  ali: { dist: 0.2, p_uneven: 0.5 }
 checkpoint_every_steps: 1000
 validation_every_steps: 5000
 report_every_steps: 100
