@@ -303,6 +303,7 @@ class DataSet():
         self.max_length = max_length
         self.batch_size = batch_size
         self.steps = steps
+        self.step_run = defaultdict()
         self.read_data(files,token,vocab,0) #1000 is only used for debugging (delete to avoid filtering)
         self.build_mon_batches()
         self.build_msk_batches()
@@ -316,12 +317,16 @@ class DataSet():
         if not self.infinite: 
             for i in range(len(self.batches_mon)):
                 yield 'mon', self.batches_mon[i]
+                self.step_run['mon'] += 1
             for i in range(len(self.batches_msk)):
                 yield 'msk', self.batches_msk[i]
+                self.step_run['msk'] += 1
             for i in range(len(self.batches_sim)):
                 yield 'sim', self.batches_sim[i]
+                self.step_run['ali'] += 1
             for i in range(len(self.batches_ali)):
                 yield 'ali', self.batches_ali[i]
+                self.step_run['ali'] += 1
             return
 
         ### if training i loop forever follwing the distributions indicated by self.steps['dist']
@@ -365,26 +370,31 @@ class DataSet():
                 if i_mon >= len(indexs_mon):
                     i_mon = 0
                 yield 'mon', self.batches_mon[indexs_mon[i_mon]]
+                self.step_run['mon'] += 1
                 i_mon += 1
 
             elif p < dist_mon+dist_msk:
                 if i_msk >= len(indexs_msk):
                     i_msk = 0
                 yield 'msk', self.batches_msk[indexs_msk[i_msk]]
+                self.step_run['msk'] += 1
                 i_msk += 1
 
             elif p < dist_mon+dist_msk+dist_sim:
                 if i_sim >= len(indexs_sim):
                     i_sim = 0
                 yield 'sim', self.batches_sim[indexs_sim[i_sim]]
+                self.step_run['sim'] += 1
                 i_sim += 1
 
             elif p < dist_mon+dist_msk+dist_sim+dist_ali:
                 if i_ali >= len(indexs_ali):
                     i_ali = 0
                 yield 'ali', self.batches_ali[indexs_ali[i_ali]]
+                self.step_run['ali'] += 1
                 i_ali += 1
 
-
+    def info(self):
+        return '#mon: {} #msk: {} #sim: {} #ali: {}'.format(self.step_run['mon'], self.step_run['msk'], self.step_run['sim'], self.step_run['ali'])
 
 
