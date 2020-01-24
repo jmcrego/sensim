@@ -16,6 +16,6 @@ steps:
   ali: { dist: 0.0, p_uneven: 0.5 }
 checkpoint_every_steps: 1000
 validation_every_steps: 5000
-report_every_steps: 100
+report_every_steps: 10
 average_last_n: 10
 

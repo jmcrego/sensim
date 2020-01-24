@@ -140,10 +140,11 @@ class Trainer():
             ### report
             ###
             if self.report_every_steps > 0 and self.n_steps_so_far % self.report_every_steps == 0:
-#                logging.info("Train step: {} Loss: {:.4f} Tokens/sec: {:.1f} {}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
-                logging.info("Train step: {} Loss: {:.4f} {} Tokens/sec: {:.1f} {}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
+                logging.info("Train step: {} Loss: {:.4f} Tokens/sec: {:.1f} {}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
                 n_words_so_far = 0
                 sum_loss_so_far = 0.0
+                n_words_so_far_step = defaultdict(int)
+                sum_loss_so_far_step = defaultdict(float)
                 start = time.time()
             ###
             ### save
@@ -298,8 +299,7 @@ class Trainer():
         for step in steps_run:
             if n_words_so_far_step[step] == 0:
                 continue
-#            desc.append('{} steps:{:.2f} loss:{:.4f}'.format(step, 1.0*steps_run[step]/total_steps, sum_loss_so_far_step[step]/n_words_so_far_step[step]))
-            desc.append('{} steps:{:.2f} loss:{:.4f} {}'.format(step, 1.0*steps_run[step]/total_steps, sum_loss_so_far_step[step]/n_words_so_far_step[step], n_words_so_far_step[step]))
+            desc.append('{} steps:{:.2f} loss:{:.4f}'.format(step, 1.0*steps_run[step]/total_steps, sum_loss_so_far_step[step]/n_words_so_far_step[step]))
 
         return '[{}]'.format(' '.join(desc))
 
