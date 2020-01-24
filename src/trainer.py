@@ -45,7 +45,8 @@ class Trainer():
         self.criterion_sim = CosineSim(tok1_idx=self.vocab.idx_cls, tok2_idx=self.vocab.idx_sep)
         if self.cuda:
             self.model.cuda()
-            self.criterion.cuda()
+            self.criterion_msk.cuda()
+            self.criterion_sim.cuda()
         self.load_checkpoint() #loads if exists
         self.loss_msk = ComputeLossMsk(self.model.generator, self.criterion_msk, self.optimizer)
         self.loss_sim = ComputeLossSim(self.criterion_sim, self.optimizer)
