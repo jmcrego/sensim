@@ -133,7 +133,7 @@ class Trainer():
             ### report
             ###
             if self.report_every_steps > 0 and self.n_steps_so_far % self.report_every_steps == 0:
-                logging.info("Train step: {} Loss: {:.4f} Tokens/sec: {:.1f}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start))) 
+                logging.info("Train step: {} Loss: {:.4f} Tokens/sec: {:.1f} {}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start), self.data_train.info())) 
                 n_words_so_far = 0
                 sum_loss_so_far = 0.0
                 start = time.time()
