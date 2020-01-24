@@ -307,7 +307,7 @@ class DataSet():
         self.max_length = max_length
         self.batch_size = batch_size
         self.steps = steps
-        self.read_data(files,token,vocab,1000) #1000 is only used for debugging (delete to avoid filtering)
+        self.read_data(files,token,vocab,0) #1000 is only used for debugging (delete to avoid filtering)
         self.build_mon_batches()
         self.build_par_batches()
         self.build_sim_batches()
