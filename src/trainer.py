@@ -125,7 +125,7 @@ class Trainer():
                 h = self.model.forward(x,x_mask) 
                 loss = self.loss_msk(h, y_mask, n_topredict)
             elif step == 'sim': ### fine-tunning
-                sembed = self.train['steps']['sim']['pooling']
+                sembed = self.steps['sim']['pooling']
                 x1, x1_mask, x2, x2_mask, y = self.sim_batch_cuda(batch[0],batch[1],batch[2]) #batch[0] is the batch_src, batch[1] is the batch_tgt, batch[2] is batch_isparallel
                 #x1 contains the true words in batch_src
                 #x1_mask contains true for padded words, false for not padded words in batch_src
