@@ -106,7 +106,7 @@ class Trainer():
             ###
             ### run step
             ###
-            if step == 'par' or step == 'mon':
+            if step == 'par' or step == 'mon': ### pre-training
                 x, x_mask, y_mask, n_topredict = self.msk_batch_cuda(batch,step)
                 #x contains the true words in batch after some masked (<msk>, random, same)
                 #x_mask contains true for padded words, false for not padded words in batch
@@ -116,7 +116,7 @@ class Trainer():
                     continue
                 h = self.model.forward(x,x_mask) 
                 loss = self.loss_msk(h, y_mask, n_topredict)
-            elif step == 'sim':
+            elif step == 'sim': ### fine-tunning
                 x, x_mask, y = self.sim_batch_cuda(batch[0],batch[1]) #batch[0] is the batch, batch[1] is the batch_isparallel
                 #x contains the true words in batch
                 #x_mask contains true for padded words, false for not padded words in batch
@@ -124,7 +124,7 @@ class Trainer():
                 h = self.model.forward(x,x_mask)
                 loss = self.loss_sim(x, h, y)
                 n_topredict = 1
-            elif step == 'ali':
+            elif step == 'ali': ### fine-tunning
                 continue
             else:
                 logging.info('bad step {}'.format(step))
@@ -170,37 +170,49 @@ class Trainer():
         self.model.eval()
         n_steps_so_far = 0
         n_words_so_far = 0
-        n_words_valid = 0
-        sum_loss_valid = 0
-        sum_loss_so_far = 0.0
+        sum_loss_so_far = 0
+        n_words_so_far_step = defaultdict(int)
+        sum_loss_so_far_step = defaultdict(float)
+        steps_run = defaultdict(int)
         start = time.time()
-        for batch, batch_len in self.data_valid:
-            batch = np.array(batch)
-            y = torch.from_numpy(batch)
-            x, x_mask = self.mask_batch(batch, step) 
-            if self.cuda:
-                x = x.cuda()
-                x_mask = x_mask.cuda()
-                y = y.cuda()
-            n_words_to_predict = x_mask.sum()
-            if n_words_to_predict == 0:
+        for step, batch in self.data_valid:
+            ###
+            ### run step
+            ###
+            if step == 'par' or step == 'mon': ### pre-training
+                x, x_mask, y_mask, n_topredict = self.msk_batch_cuda(batch,step)
+                #x contains the true words in batch after some masked (<msk>, random, same)
+                #x_mask contains true for padded words, false for not padded words in batch
+                #y_mask contains the source true words to predict of masked words, <pad> otherwise
+                if n_topredict == 0: #nothing to predict
+                    logging.info('batch with nothing to predict')
+                    continue
+                h = self.model.forward(x,x_mask) 
+                loss = self.loss_msk(h, y_mask, n_topredict)
+            elif step == 'sim': ### fine-tunning
+                x, x_mask, y = self.sim_batch_cuda(batch[0],batch[1]) #batch[0] is the batch, batch[1] is the batch_isparallel
+                #x contains the true words in batch
+                #x_mask contains true for padded words, false for not padded words in batch
+                #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
+                h = self.model.forward(x,x_mask)
+                loss = self.loss_sim(x, h, y)
+                n_topredict = 1
+            elif step == 'ali': ### fine-tunning
                 continue
-            y_pred = self.model.forward(x,x_mask) 
-            loss = self.computeloss(y_pred, y, n_words_to_predict)
+            else:
+                logging.info('bad step {}'.format(step))
+                sys.exit()
+
             n_steps_so_far += 1
-            n_words_so_far += n_words_to_predict
-            n_words_valid += n_words_to_predict
+            n_words_so_far += n_topredict
             sum_loss_so_far += loss 
-            sum_loss_valid += loss
-            ###
-            ### report
-            ###
-            if self.report_every_steps > 0 and n_steps_so_far % self.report_every_steps == 0:
-#                logging.info("Valid step: {}/{} Loss: {:.4f} Tokens/sec: {:.1f}".format(n_steps_so_far, len(self.data_valid), sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start))) 
-                n_words_so_far = 0
-                sum_loss_so_far = 0.0
-                start = time.time()
-        logging.info('Valid Loss: {:.4f}'.format(sum_loss_valid / n_words_valid))
+            n_words_so_far_step[step] += n_topredict
+            sum_loss_so_far_step[step] += loss 
+            steps_run[step] += 1
+        ###
+        ### report
+        ###
+        logging.info("valid Loss: {:.4f} Tokens/sec: {:.1f} {}".format(sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
 
 
     def average(self):
