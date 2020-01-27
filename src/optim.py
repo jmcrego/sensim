@@ -46,6 +46,9 @@ class NoamOpt:
 #def get_std_opt(model):
 #    return NoamOpt(model.src_embed[0].d_model, 2, 4000, torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
 
+##################################################################
+### Criterions ###################################################
+##################################################################
 
 class LabelSmoothing(nn.Module):
     def __init__(self, size, padding_idx, smoothing=0.0):
@@ -72,17 +75,86 @@ class LabelSmoothing(nn.Module):
 
 
 class CosineSim(nn.Module):
-    def __init__(self, tok1_idx, tok2_idx, margin=0.0):
+    def __init__(self, margin=0.0):
         super(CosineSim, self).__init__()
         self.criterion = nn.CosineEmbeddingLoss(margin=margin, size_average=None, reduce=None, reduction='mean')
-        self.tok1_idx = tok1_idx
-        self.tok2_idx = tok2_idx
         logging.debug('built criterion (cosine)')
         
-    def forward(self, h1, h2, target):
-        ### mean over h1[tok1_idx] and h2[tok2_idx]
-        return self.criterion(h1, h2, target)
+    def forward(self, s1, s2, target):
+        return self.criterion(s1, s2, target)
 
 
+class AlignSim(nn.Module):
+    def __init__(self):
+        super(AlignSim, self).__init__()
+        self.criterion = nn.MSELoss(size_average=None, reduce=None, reduction='mean') 
+        logging.debug('built criterion (align)')
+        
+    def forward(self, y_hat, target):
+        return self.criterion(y_hat, target)
+
+##################################################################
+### Compute losses ###############################################
+##################################################################
+
+class ComputeLossMsk:
+    def __init__(self, generator, criterion, opt=None):
+        self.generator = generator
+        self.criterion = criterion
+        self.opt = opt
+
+    def __call__(self, h, y, n_topredict): 
+        if self.opt is not None:
+            self.opt.optimizer.zero_grad()
+        x_hat = self.generator(h) # project x softmax 
+        #x_hat [batch_size, max_len, |vocab|]
+        #y     [batch_size, max_len]
+        x_hat = x_hat.contiguous().view(-1, x_hat.size(-1))
+        y = y.contiguous().view(-1)
+        #x_hat [batch_size*max_len, |vocab|]
+        #y     [batch_size*max_len]
+
+        #n_ok = ((y == torch.argmax(x_hat, dim=1)) * (y != self.criterion.padding_idx)).sum()
+        #logging.debug('batch {}/{} Acc={:.2f}'.format(n_ok,n_topredict,100.0*n_ok/n_topredict))
+
+        loss = self.criterion(x_hat, y) / n_topredict
+        loss.backward()
+        if self.opt is not None:
+            self.opt.step() #performs a parameter update based on the current gradient
+        return loss.data * n_topredict
+
+
+class ComputeLossSim:
+    def __init__(self, criterion, pooling, opt=None):
+        self.criterion = criterion
+        self.opt = opt
+        self.pooling = pooling
+
+    def __call__(self, h1, h2, mask1, mask2, y): 
+        #h1 [batch_size, max_len, embedding_size] embeddings of source words after encoder
+        #h2 [batch_size, max_len, embedding_size] embeddings of target words after encoder
+        #y [batch_size, max_len] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
+        if self.opt is not None:
+            self.opt.optimizer.zero_grad()
+
+        if self.pooling == 'max':
+            pass
+
+        elif self.pooling == 'mean':
+            pass
+
+        elif self.pooling == 'cls':
+            s1 = h1[:0:]
+            s2 = h2[:0:]
+
+        else: # 'align':
+            pass
+
+        loss = self.criterion(s1, s2, y)
+        loss.backward()
+        if self.opt is not None:
+            self.opt.step() #performs a parameter update based on the current gradient
+
+        return loss.data
 
 

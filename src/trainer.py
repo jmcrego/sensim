@@ -11,8 +11,8 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 from src.dataset import Vocab, DataSet, OpenNMTTokenizer
-from src.model import make_model, ComputeLossMsk, ComputeLossSim
-from src.optim import NoamOpt, LabelSmoothing, CosineSim
+from src.model import make_model
+from src.optim import NoamOpt, LabelSmoothing, CosineSim, ComputeLossMsk, ComputeLossSim
 
 class Trainer():
 
@@ -43,14 +43,22 @@ class Trainer():
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         self.optimizer = NoamOpt(d_model, factor, warmup_steps, torch.optim.Adam(self.model.parameters(), lr=lrate, betas=(beta1, beta2), eps=eps))
         self.criterion_msk = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
-        self.criterion_sim = CosineSim(tok1_idx=self.vocab.idx_cls, tok2_idx=self.vocab.idx_sep)
         if self.cuda:
             self.model.cuda()
             self.criterion_msk.cuda()
-            self.criterion_sim.cuda()
+
+        if self.steps['sim']['run'] == True:
+            if self.steps['sim']['pooling'] == 'align':
+                self.criterion_sim = AlignSim()
+            else:
+                self.criterion_sim = CosineSim()
+            if self.cuda:
+                self.criterion_sim.cuda()
+
         self.load_checkpoint() #loads if exists
         self.loss_msk = ComputeLossMsk(self.model.generator, self.criterion_msk, self.optimizer)
-        self.loss_sim = ComputeLossSim(self.criterion_sim, self.optimizer)
+        if self.steps['sim']['run'] == True:
+            self.loss_sim = ComputeLossSim(self.criterion_sim, self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
 
 
@@ -117,15 +125,17 @@ class Trainer():
                 h = self.model.forward(x,x_mask) 
                 loss = self.loss_msk(h, y_mask, n_topredict)
             elif step == 'sim': ### fine-tunning
-                x, x_mask, y = self.sim_batch_cuda(batch[0],batch[1]) #batch[0] is the batch, batch[1] is the batch_isparallel
-                #x contains the true words in batch
-                #x_mask contains true for padded words, false for not padded words in batch
+                sembed = self.train['steps']['sim']['pooling']
+                x1, x1_mask, x2, x2_mask, y = self.sim_batch_cuda(batch[0],batch[1],batch[2]) #batch[0] is the batch_src, batch[1] is the batch_tgt, batch[2] is batch_isparallel
+                #x1 contains the true words in batch_src
+                #x1_mask contains true for padded words, false for not padded words in batch_src
+                #x2 contains the true words in batch_tgt
+                #x2_mask contains true for padded words, false for not padded words in batch_tgt
                 #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
-                h = self.model.forward(x,x_mask)
-                loss = self.loss_sim(x, h, y)
+                h1 = self.model.forward(x1,x1_mask)
+                h2 = self.model.forward(x2,x2_mask)
+                loss = self.loss_sim(h1, h2, x1_mask, x2_mask, y)
                 n_topredict = 1
-            elif step == 'ali': ### fine-tunning
-                continue
             else:
                 logging.info('bad step {}'.format(step))
                 sys.exit()
@@ -164,55 +174,6 @@ class Trainer():
 
         self.save_checkpoint()
         logging.info('End train')
-
-
-    def validation(self):
-        self.model.eval()
-        n_steps_so_far = 0
-        n_words_so_far = 0
-        sum_loss_so_far = 0
-        n_words_so_far_step = defaultdict(int)
-        sum_loss_so_far_step = defaultdict(float)
-        steps_run = defaultdict(int)
-        start = time.time()
-        for step, batch in self.data_valid:
-            ###
-            ### run step
-            ###
-            if step == 'par' or step == 'mon': ### pre-training
-                x, x_mask, y_mask, n_topredict = self.msk_batch_cuda(batch,step)
-                #x contains the true words in batch after some masked (<msk>, random, same)
-                #x_mask contains true for padded words, false for not padded words in batch
-                #y_mask contains the source true words to predict of masked words, <pad> otherwise
-                if n_topredict == 0: #nothing to predict
-                    logging.info('batch with nothing to predict')
-                    continue
-                h = self.model.forward(x,x_mask) 
-                loss = self.loss_msk(h, y_mask, n_topredict)
-            elif step == 'sim': ### fine-tunning
-                x, x_mask, y = self.sim_batch_cuda(batch[0],batch[1]) #batch[0] is the batch, batch[1] is the batch_isparallel
-                #x contains the true words in batch
-                #x_mask contains true for padded words, false for not padded words in batch
-                #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
-                h = self.model.forward(x,x_mask)
-                loss = self.loss_sim(x, h, y)
-                n_topredict = 1
-            elif step == 'ali': ### fine-tunning
-                continue
-            else:
-                logging.info('bad step {}'.format(step))
-                sys.exit()
-
-            n_steps_so_far += 1
-            n_words_so_far += n_topredict
-            sum_loss_so_far += loss 
-            n_words_so_far_step[step] += n_topredict
-            sum_loss_so_far_step[step] += loss 
-            steps_run[step] += 1
-        ###
-        ### report
-        ###
-        logging.info("valid Loss: {:.4f} Tokens/sec: {:.1f} {}".format(sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
 
 
     def average(self):

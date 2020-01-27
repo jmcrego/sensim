@@ -183,35 +183,19 @@ class ComputeLossMsk:
         return loss.data * n_topredict
 
 
-class ComputeLossSim:
+class ComputeLossFT:
     def __init__(self, criterion, opt=None):
         self.criterion = criterion
         self.opt = opt
 
-    def __call__(self, x, h, y): 
-        #x [batch_size, max_len] indexes of words
-        #h [batch_size, max_len, embedding_size] embeddings of words after encoder
-        #y [batch_size, max_len] parallel(1.0)/non_parallel(-1.0) value of each sentence
+    def __call__(self, h1, h2, mask1, mask2, y): 
+        #h1 [batch_size, max_len, embedding_size] embeddings of source words after encoder
+        #h2 [batch_size, max_len, embedding_size] embeddings of target words after encoder
+        #y [batch_size, max_len] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
         if self.opt is not None:
             self.opt.optimizer.zero_grad()
 
-        #print('x',x.size())
-        #print('h',h.size())
-        #print('y',y.size())
-
-        x1_mask = (x == self.criterion.tok1_idx).unsqueeze(2)
-        #print('x1_mask',x1_mask.size())
-        #print('x1_mask[0]',x1_mask[0])
-        x2_mask = (x == self.criterion.tok2_idx).unsqueeze(2)
-        #print('x2_mask',x2_mask.size())
-        #print('x2_mask[0]',x2_mask[0])
-
-        h1 = torch.masked_select(h, x1_mask).view(h.size(0),h.size(2))
-        #print('h1',h1.size())
-        h2 = torch.masked_select(h, x2_mask).view(h.size(0),h.size(2))
-        #print('h2',h2.size())
-
-        loss = self.criterion(h1, h2, y)
+        loss = self.criterion(h1, h2, mask1, mask2, y)
         loss.backward()
         if self.opt is not None:
             self.opt.step() #performs a parameter update based on the current gradient

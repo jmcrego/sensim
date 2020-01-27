@@ -179,10 +179,6 @@ class DataSet():
 
     def build_mon_batches(self):
         self.batches_mon = []
-        dist = 0.0
-        if 'mon' in self.steps and 'dist' in self.steps['mon']: dist = self.steps['mon']['dist']
-        if dist == 0.0: return
-
         indexs = [i for i in range(len(self.data_mono))] #indexs in original order
         if self.allow_shuffle:
             logging.debug('sorting data_mon to minimize padding')
@@ -202,10 +198,6 @@ class DataSet():
 
     def build_par_batches(self):
         self.batches_par = []
-        dist = 0.0
-        if 'par' in self.steps and 'dist' in self.steps['par']: dist = self.steps['par']['dist']
-        if dist == 0.0: return
-
         indexs = [i for i in range(len(self.data_btxt))] #indexs in original order
         if self.allow_shuffle:
             logging.debug('sorting data_par to minimize padding')
@@ -230,52 +222,10 @@ class DataSet():
 
     def build_sim_batches(self):
         self.batches_sim = []
-        dist = 0.0
-        if 'sim' in self.steps and 'dist' in self.steps['sim']: dist = self.steps['sim']['dist']
-        if dist == 0.0: return
-
         p_uneven = self.steps['sim']['p_uneven']
         indexs = [i for i in range(len(self.data_btxt))] #indexs in original order
         if self.allow_shuffle:
-            logging.debug('sorting data_sim to minimize padding')
-            data_len = [len(x[0])+len(x[1]) for x in self.data_btxt]
-            indexs = np.argsort(data_len) #indexs sorted by length of data
-        curr_batch = []
-        curr_batch_isparallel = []
-        for i in range(len(indexs)):
-            index = indexs[i]            
-            src_idx = self.data_btxt[index][0]
-            tgt_idx = self.data_btxt[index][1]
-            isparallel = 1.0 ### parallel
-            if random.random() < p_uneven and i>0:
-                index_prev = indexs[i-1]
-                tgt_idx = self.data_btxt[index_prev][1]
-                isparallel = -1.0 ### NOT parallel
-            snt_idx = []
-            snt_idx.append(idx_cls)
-            snt_idx.extend(src_idx)
-            snt_idx.append(idx_sep)
-            snt_idx.extend(tgt_idx)
-            curr_batch.append(snt_idx) #<cls> <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <t1>, <t2>, ..., <tn>, <eos>
-            curr_batch_isparallel.append(isparallel)
-            if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example                
-                self.batches_sim.append([self.add_padding(curr_batch),curr_batch_isparallel]) 
-                curr_batch = []
-                curr_batch_isparallel = []
-        logging.info('built {} sim batches'.format(len(self.batches_sim)))
-
-
-    def build_ali_batches(self):
-        self.batches_ali = []
-        dist = 0.0
-        if 'ali' in self.steps and 'dist' in self.steps['ali']: dist = self.steps['ali']['dist']
-        if dist == 0.0: return
-
-
-        p_uneven = self.steps['ali']['p_uneven']
-        indexs = [i for i in range(len(self.data_btxt))] #indexs in original order
-        if self.allow_shuffle:
-            logging.debug('sorting data_ali to minimize padding')
+            logging.debug('sorting data_btxt to minimize padding')
             data_len = [len(x[0]) for x in self.data_btxt]
             indexs = np.argsort(data_len) #indexs sorted by length of data
         curr_batch_src = []
@@ -294,11 +244,11 @@ class DataSet():
             curr_batch_tgt.append(tgt_idx)
             curr_batch_isparallel.append(isparallel)
             if len(curr_batch_src) == self.batch_size or i == len(indexs)-1: #full batch or last example                
-                self.batches_ali.append([self.add_padding(curr_batch_src), self.add_padding(curr_batch_tgt), curr_batch_isparallel]) 
+                self.batches_sim.append([self.add_padding(curr_batch_src), self.add_padding(curr_batch_tgt), curr_batch_isparallel]) 
                 curr_batch_src = []
                 curr_batch_tgt = []
                 curr_batch_isparallel = []
-        logging.info('built {} ali batches'.format(len(self.batches_ali)))
+        logging.info('built {} sim batches'.format(len(self.batches_sim)))
 
 
     def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0, allow_shuffle=False, infinite=False):
@@ -307,11 +257,18 @@ class DataSet():
         self.max_length = max_length
         self.batch_size = batch_size
         self.steps = steps
-        self.read_data(files,token,vocab,0) #1000 is only used for debugging (delete to avoid filtering)
-        self.build_mon_batches()
-        self.build_par_batches()
-        self.build_sim_batches()
-        self.build_ali_batches()
+        self.read_data(files,token,vocab,10000) #1000 is only used for debugging (delete to avoid filtering)
+
+        self.dist_mon = self.steps['mon']['dist']
+        self.dist_par = self.steps['par']['dist']
+        self.run_sim = self.steps['sim']['run']
+        if self.run_sim:
+            self.build_sim_batches()
+        else:
+            if self.dist_mon > 0.0:
+                self.build_mon_batches()
+            if self.dist_par > 0.0:
+                self.build_par_batches()
 
 
     def __iter__(self):
@@ -324,69 +281,52 @@ class DataSet():
                 yield 'par', self.batches_par[i]
             for i in range(len(self.batches_sim)):
                 yield 'sim', self.batches_sim[i]
-            for i in range(len(self.batches_ali)):
-                yield 'ali', self.batches_ali[i]
             return
 
         ### if training i loop forever follwing the distributions indicated by self.steps['dist']
-        dist_mon = self.steps['mon']['dist']
-        if dist_mon > 0.0 and len(self.batches_mon) == 0:
-            logging.error('no batches_mon entries and dist_mon={:.2f}'.format(dist_mon))
-            sys.exit()
+        if self.run_sim:
+            if len(self.batches_sim) == 0:
+                logging.error('no batches_sim entries and run_sim={}'.format(run_sim))
+                sys.exit()
+            indexs_sim = [i for i in range(len(self.batches_sim))]
+            if self.allow_shuffle: 
+                shuffle(indexs_sim)
 
-        dist_par = self.steps['par']['dist']
-        if dist_par > 0.0 and len(self.batches_par) == 0:
-            logging.error('no batches_par entries and dist_par={:.2f}'.format(dist_par))
-            sys.exit()
+        else:
+            if self.dist_mon > 0.0 and len(self.batches_mon) == 0:
+                logging.error('no batches_mon entries and dist_mon={:.2f}'.format(self.dist_mon))
+                sys.exit()
 
-        dist_sim = self.steps['sim']['dist']
-        if dist_sim > 0.0 and len(self.batches_sim) == 0:
-            logging.error('no batches_sim entries and dist_sim={:.2f}'.format(dist_sim))
-            sys.exit()
+            if self.dist_par > 0.0 and len(self.batches_par) == 0:
+                logging.error('no batches_par entries and dist_par={:.2f}'.format(self.dist_par))
+                sys.exit()
+            indexs_mon = [i for i in range(len(self.batches_mon))]
+            indexs_par = [i for i in range(len(self.batches_par))]
+            if self.allow_shuffle: 
+                shuffle(indexs_mon)
+                shuffle(indexs_par)
 
-        dist_ali = self.steps['ali']['dist']
-        if dist_ali > 0.0 and len(self.batches_ali) == 0:
-            logging.error('no batches_ali entries and dist_ali={:.2f}'.format(dist_ali))
-            sys.exit()
-
-        indexs_mon = [i for i in range(len(self.batches_mon))]
-        indexs_par = [i for i in range(len(self.batches_par))]
-        indexs_sim = [i for i in range(len(self.batches_sim))]
-        indexs_ali = [i for i in range(len(self.batches_ali))]
-        ### do shuffle if required
-        if self.allow_shuffle: 
-            shuffle(indexs_mon)
-            shuffle(indexs_par)
-            shuffle(indexs_sim)
-            shuffle(indexs_ali)
         i_mon = 0
         i_par = 0
         i_sim = 0
-        i_ali = 0
         while True: #### infinite loop
-            p = random.random() #[0.0, 1.0)
-            if p < dist_mon:
-                if i_mon >= len(indexs_mon):
-                    i_mon = 0
-                yield 'mon', self.batches_mon[indexs_mon[i_mon]]
-                i_mon += 1
+            if not self.run_sim:
+                p = random.random() #[0.0, 1.0)
+                if p < self.dist_mon:
+                    if i_mon >= len(indexs_mon):
+                        i_mon = 0
+                    yield 'mon', self.batches_mon[indexs_mon[i_mon]]
+                    i_mon += 1
 
-            elif p < dist_mon+dist_par:
-                if i_par >= len(indexs_par):
-                    i_par = 0
-                yield 'par', self.batches_par[indexs_par[i_par]]
-                i_par += 1
-
-            elif p < dist_mon+dist_par+dist_sim:
+                elif p < self.dist_mon+self.dist_par:
+                    if i_par >= len(indexs_par):
+                        i_par = 0
+                    yield 'par', self.batches_par[indexs_par[i_par]]
+                    i_par += 1
+            else:
                 if i_sim >= len(indexs_sim):
                     i_sim = 0
                 yield 'sim', self.batches_sim[indexs_sim[i_sim]]
                 i_sim += 1
-
-            elif p < dist_mon+dist_par+dist_sim+dist_ali:
-                if i_ali >= len(indexs_ali):
-                    i_ali = 0
-                yield 'ali', self.batches_ali[indexs_ali[i_ali]]
-                i_ali += 1
 
 
