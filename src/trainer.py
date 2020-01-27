@@ -272,7 +272,7 @@ class Trainer():
         for step in steps_run:
             if n_words_so_far_step[step] == 0:
                 continue
-            desc.append('{} steps:{:.2f} loss:{:.4f}'.format(step, 1.0*steps_run[step]/total_steps, sum_loss_so_far_step[step]/n_words_so_far_step[step]))
+            desc.append('{} {:.1f}% loss:{:.4f}'.format(step, 100.0*steps_run[step]/total_steps, sum_loss_so_far_step[step]/n_words_so_far_step[step]))
 
         return '[{}]'.format(' '.join(desc))
 
