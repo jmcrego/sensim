@@ -54,7 +54,7 @@ class Trainer():
         token = OpenNMTTokenizer(**opts.cfg['token'])
 
 
-        logging.info('Read Train data')
+        logging.info('read Train data')
         self.data_train = DataSet(self.steps,opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,infinite=True)
 
         if 'valid' in opts.train:
