@@ -3,19 +3,19 @@ train:
   - [ './data/ECB.trn.en.gz',  './data/ECB.trn.fr.gz'  ]
   - [ './data/EMEA.trn.en.gz', './data/EMEA.trn.fr.gz' ]
   - [ './data/KDE4.trn.en.gz', './data/KDE4.trn.fr.gz' ]
-  - [ './data/ECB.trn.en.gz'  ]
-  - [ './data/EMEA.trn.en.gz' ]
-  - [ './data/KDE4.trn.en.gz' ]
-  - [ './data/ECB.trn.fr.gz'  ]
-  - [ './data/EMEA.trn.fr.gz' ]
-  - [ './data/KDE4.trn.fr.gz' ]
+#  - [ './data/ECB.trn.en.gz'  ]
+#  - [ './data/EMEA.trn.en.gz' ]
+#  - [ './data/KDE4.trn.en.gz' ]
+#  - [ './data/ECB.trn.fr.gz'  ]
+#  - [ './data/EMEA.trn.fr.gz' ]
+#  - [ './data/KDE4.trn.fr.gz' ]
 max_length: 160
 batch_size: [32, 4]
 train_steps: 1000000
 steps: 
   mon: { dist: 0.3, prob: 0.15, same: 0.1, rand: 0.1 }
   par: { dist: 0.7, prob: 0.15, same: 0.1, rand: 0.1 }
-  sim: { run: false, p_uneven: 0.5, pooling: 'cls' } #align, max, mean, cls
+  sim: { run: true, p_uneven: 0.5, pooling: 'align' } #align, max, mean, cls
 checkpoint_every_steps: 1000
 validation_every_steps: 5000
 report_every_steps: 10

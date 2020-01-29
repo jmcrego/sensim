@@ -12,7 +12,7 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 from src.dataset import Vocab, DataSet, OpenNMTTokenizer
 from src.model import make_model
-from src.optim import NoamOpt, LabelSmoothing, CosineSim, ComputeLossMsk, ComputeLossSim
+from src.optim import NoamOpt, LabelSmoothing, CosineSim, AlignSim, ComputeLossMsk, ComputeLossSim
 
 class Trainer():
 
@@ -47,7 +47,7 @@ class Trainer():
             self.model.cuda()
             self.criterion_msk.cuda()
 
-        if self.steps['sim']['run'] == True:
+        if self.steps['sim']['run']:
             if self.steps['sim']['pooling'] == 'align':
                 self.criterion_sim = AlignSim()
             else:
@@ -57,10 +57,9 @@ class Trainer():
 
         self.load_checkpoint() #loads if exists
         self.loss_msk = ComputeLossMsk(self.model.generator, self.criterion_msk, self.optimizer)
-        if self.steps['sim']['run'] == True:
-            self.loss_sim = ComputeLossSim(self.criterion_sim, self.optimizer)
+        if self.steps['sim']['run']:
+            self.loss_sim = ComputeLossSim(self.criterion_sim, self.steps['sim']['pooling'], self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
-
 
         logging.info('read Train data')
         self.data_train = DataSet(self.steps,opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,infinite=True)
@@ -126,15 +125,17 @@ class Trainer():
                 loss = self.loss_msk(h, y_mask, n_topredict)
             elif step == 'sim': ### fine-tunning
                 sembed = self.steps['sim']['pooling']
-                x1, x1_mask, x2, x2_mask, y = self.sim_batch_cuda(batch[0],batch[1],batch[2]) #batch[0] is the batch_src, batch[1] is the batch_tgt, batch[2] is batch_isparallel
+                x1, x2, l1, l2, x1_mask, x2_mask, y = self.sim_batch_cuda(batch) 
                 #x1 contains the true words in batch_src
-                #x1_mask contains true for padded words, false for not padded words in batch_src
                 #x2 contains the true words in batch_tgt
-                #x2_mask contains true for padded words, false for not padded words in batch_tgt
+                #l1 length of sentences in batch
+                #l2 length of sentences in batch
+                #x1_mask contains true for padded words, false for not padded words in x1
+                #x2_mask contains true for padded words, false for not padded words in x2
                 #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
-                loss = self.loss_sim(h1, h2, x1_mask, x2_mask, y)
+                loss = self.loss_sim(h1, h2, l1, l2, y)
                 n_topredict = 1
             else:
                 logging.info('bad step {}'.format(step))
@@ -248,18 +249,32 @@ class Trainer():
         return x, x_mask, y_mask, n_topredict
 
 
-    def sim_batch_cuda(self, batch, y):
-        batch = np.asarray(batch)
-        y = np.asarray(y)
-        x = torch.from_numpy(batch) #[batch_size, max_len] the original words with padding
-        x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
+    def sim_batch_cuda(self, batch):
+        batch_src = np.array(batch[0])
+        batch_tgt = np.array(batch[1])
+        batch_src_len = np.array(batch[2])
+        batch_tgt_len = np.array(batch[3])
+        y = np.asarray(batch[4])
+
+        x1 = torch.from_numpy(batch_src) #[batch_size, max_len] the original words with padding
+        x1_mask = torch.as_tensor((batch_src != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
+        l1 = torch.from_numpy(batch_src_len) #[bs]
+
+        x2 = torch.from_numpy(batch_tgt) #[batch_size, max_len] the original words with padding
+        x2_mask = torch.as_tensor((batch_tgt != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
+        l2 = torch.from_numpy(batch_tgt_len) #[bs]
+
         y = torch.as_tensor(y)
         if self.cuda:
-            x = x.cuda()
-            x_mask = x_mask.cuda()
+            x1 = x1.cuda()
+            x1_mask = x1_mask.cuda()
+            l1 = l1.cuda()
+            x2 = x2.cuda()
+            x2_mask = x2_mask.cuda()
+            l2 = l2.cuda()
             y = y.cuda()
 
-        return x, x_mask, y
+        return x1, x2, l1, l2, x1_mask, x2_mask, y
 
     def stats(self, n_words_so_far_step,sum_loss_so_far_step,steps_run):
         total_steps = 0

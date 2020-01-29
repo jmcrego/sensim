@@ -9,6 +9,7 @@ import numpy as np
 import json
 import six
 import random
+from torch.nn.utils.rnn import pad_sequence
 from random import shuffle
 from collections import defaultdict
 
@@ -230,6 +231,8 @@ class DataSet():
             indexs = np.argsort(data_len) #indexs sorted by length of data
         curr_batch_src = []
         curr_batch_tgt = []
+        curr_batch_src_len = []
+        curr_batch_tgt_len = []
         curr_batch_isparallel = []
         for i in range(len(indexs)):
             index = indexs[i]
@@ -242,11 +245,15 @@ class DataSet():
                 isparallel = -1.0 ### NOT parallel
             curr_batch_src.append(src_idx)
             curr_batch_tgt.append(tgt_idx)
+            curr_batch_src_len.append(len(src_idx))
+            curr_batch_tgt_len.append(len(tgt_idx))
             curr_batch_isparallel.append(isparallel)
             if len(curr_batch_src) == self.batch_size or i == len(indexs)-1: #full batch or last example                
-                self.batches_sim.append([self.add_padding(curr_batch_src), self.add_padding(curr_batch_tgt), curr_batch_isparallel]) 
+                self.batches_sim.append([self.add_padding(curr_batch_src), self.add_padding(curr_batch_tgt), curr_batch_src_len, curr_batch_tgt_len, curr_batch_isparallel]) 
                 curr_batch_src = []
                 curr_batch_tgt = []
+                curr_batch_src_len = []
+                curr_batch_tgt_len = []
                 curr_batch_isparallel = []
         logging.info('built {} sim batches'.format(len(self.batches_sim)))
 
@@ -283,7 +290,7 @@ class DataSet():
                 yield 'sim', self.batches_sim[i]
             return
 
-        ### if training i loop forever follwing the distributions indicated by self.steps['dist']
+        ### if training i loop forever following the distributions indicated by self.steps['mon']['dist'] and self.steps['par']['dist']
         if self.run_sim:
             if len(self.batches_sim) == 0:
                 logging.error('no batches_sim entries and run_sim={}'.format(run_sim))

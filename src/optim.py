@@ -1,5 +1,6 @@
 import torch
 import logging
+import sys
 from torch import nn
 from torch.autograd import Variable
 
@@ -117,7 +118,7 @@ class ComputeLossMsk:
         #n_ok = ((y == torch.argmax(x_hat, dim=1)) * (y != self.criterion.padding_idx)).sum()
         #logging.debug('batch {}/{} Acc={:.2f}'.format(n_ok,n_topredict,100.0*n_ok/n_topredict))
 
-        loss = self.criterion(x_hat, y) / n_topredict
+        loss = self.criterion(x_hat, y) / n_topredict #(normalised per token predicted)_
         loss.backward()
         if self.opt is not None:
             self.opt.step() #performs a parameter update based on the current gradient
@@ -127,34 +128,116 @@ class ComputeLossMsk:
 class ComputeLossSim:
     def __init__(self, criterion, pooling, opt=None):
         self.criterion = criterion
-        self.opt = opt
         self.pooling = pooling
+        self.opt = opt
+        self.R = 1.0
 
-    def __call__(self, h1, h2, mask1, mask2, y): 
-        #h1 [batch_size, max_len, embedding_size] embeddings of source words after encoder
-        #h2 [batch_size, max_len, embedding_size] embeddings of target words after encoder
-        #y [batch_size, max_len] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
+    def __call__(self, hs, ht, mask_st, slen, tlen, y): 
+        #hs [bs, sl, es] embeddings of source words after encoder (<cls> <bos> s1 s2 ... sI <eos> <pad> ...)
+        #ht [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
+        #mask_st [bs, sl, tl] mask contain True for words to be considered and False otherwise
+        #slen [bs] length of source sentences (I) in batch
+        #tlen [bs] length of target sentences (J) in batch
+        #y  [bs] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
+        print('hs',hs.size())
+        print('ht',ht.size())
+        print('slen',slen.size())
+        print('tlen',tlen.size())
+        print('y',y.size())
         if self.opt is not None:
             self.opt.optimizer.zero_grad()
 
         if self.pooling == 'max':
-            pass
+            mask_s = sequence_mask(slen,mask_n_initials=2).unsqueeze(-1)
+            mask_t = sequence_mask(tlen,mask_n_initials=2).unsqueeze(-1)
+            s, _ = torch.max(hs * mask_s + (1-mask_s) * torch.float('-Inf'), dim=1)
+            t, _ = torch.max(ht * mask_t + (1-mask_t) * torch.float('-Inf'), dim=1)
+            loss = self.criterion(s, t, y)
 
         elif self.pooling == 'mean':
-            pass
+            s = torch.mean(hs * sequence_mask(slen,mask_n_initials=2).unsqueeze(-1), dim=1)
+            t = torch.mean(ht * sequence_mask(tlen,mask_n_initials=2).unsqueeze(-1), dim=1)
+            loss = self.criterion(s, t, y)
 
         elif self.pooling == 'cls':
-            s1 = h1[:0:]
-            s2 = h2[:0:]
+            s = hs[:, 0, :] # take embedding of first token <cls>
+            t = ht[:, 0, :] # take embedding of first token <cls>
+            loss = self.criterion(s, t, y)
 
-        else: # 'align':
-            pass
+        elif self.pooling == 'align':
+            S = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]
+            aggr = self.aggr(S,mask_st) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence 
+            error = torch.log(1 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
+            #sum_error = tf.map_fn(lambda (x, l): tf.reduce_sum(x[2:l-1]), (error_tgt, tl))
+            loss = torch.sum(sum_error * mask_t) / torch.sum(mask_t)
+            #loss = self.criterion(s, t, y)
 
-        loss = self.criterion(s1, s2, y)
+        else:
+            logging.error('bad pooling method {}'.format(self.pooling))
+            sys.exit()
+
         loss.backward()
         if self.opt is not None:
             self.opt.step() #performs a parameter update based on the current gradient
 
         return loss.data
+
+    def aggr(self,S_st,mask_st):
+        print('S_st',S_st.size()) #[bs, ls, lt]
+        print('mask_st',mask_st.size()) #[bs, ls, lt] contains zero those cells to be padded
+        #print('l_s',l_s.size()) #[bs] #lengths of source sentences 
+        #The aggregation operation summarizes the alignment scores for each target word
+        exp_rS = torch.exp(S_st * self.R)
+        print('exp_rS',exp_rS.size()) #[bs,ls,lt]
+
+        #sum_exp_rS = tf.map_fn(lambda (x, l): tf.reduce_sum(x[2:l-1, :], 0), (exp_rS, l_s)) #[B,Ss] (do not sum over <bos> and <eos> [2:l-1])
+        mask_zeros = torch.zeros(S.size(), requires_grad=False)
+        sum_exp_rS = torch.sum(exp_rS * mask_st,dim=1) #sum over source words (dim=1)
+        print('sum_exp_rS',sum_exp_rS.size()) #[bs,lt]
+        log_sum_exp_rS = torch.log(sum_exp_rS) 
+        print('log_sum_exp_rS',log_sum_exp_rS.size()) #[bs,lt]
+        aggr = log_sum_exp_rS / self.R
+        print('aggr',aggr.size()) #[bs,lt]
+        sys.exit()
+        return aggr
+
+
+def mask_3Dbatch(batch, lengths, value, mask_n_initials=0):
+    #input batch is [batch_size, seq_length, embedding_size]
+    #i set to value those cells batch[b,l,k]:
+    #l == 0 or 1 (if mask_initial) ===> thus masking <cls> and <bos>
+    #l >= lengths[l]-1             ===> thus masking <eos> <pad> ...
+    for b in range(batch.size(0)): #for each sentence batch[b]
+        for l in range(batch.size(1)): #for each token batch[b,l]
+            if l<mask_n_initials or l>=lengths[l]-1:
+                batch[b,l] = [value] * batch.size(2) ### replace all embedding cells of this token by value
+    return batch
+
+
+def mask_3Dtensor(batch, lengths, value, mask_n_initials=0):
+    batch_mask = batch.clone()
+    #input batch is [batch_size, seq_length, embedding_size]
+    #i set to value those cells batch[b,l,k]:
+    #l == 0 or 1 (if mask_initial) ===> thus masking <cls> and <bos>
+    #l >= lengths[l]-1             ===> thus masking <eos> <pad> ...
+    for b in range(batch_mask.size(0)): #for each sentence batch[b]
+        for l in range(batch_mask.size(1)): #for each token batch[b,l]
+            if l<mask_n_initials or l>=lengths[l]-1:
+                for c in range(batch_mask.size(2)): #for each cell batch[b,l,c]
+                    batch_mask[b,l,c] = value ### replace all embedding cells of this token by value
+    return batch_mask
+
+
+def sequence_mask(lengths, mask_n_initials=0):
+    maxlen = lengths.max()
+    msk = torch.ones([len(lengths), maxlen]).cumsum(dim=1, dtype=torch.int32).t()
+    #for a 3x3 matrix: msk = [[1,2,3],[1,2,3],[1,2,3]]
+    if mask_n_initials > 0:
+        return ((msk <= lengths) & (msk > mask_n_initials)) #.t().type(torch.bool)
+    return (msk <= lengths) #.t().type(torch.bool)
+
+
+
+
 
 
