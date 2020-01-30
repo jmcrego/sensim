@@ -272,6 +272,7 @@ class Trainer():
             x2 = x2.cuda()
             x2_mask = x2_mask.cuda()
             l2 = l2.cuda()
+            x1x2_mask = x1x2_mask.cuda()
             y = y.cuda()
 
         return x1, x2, l1, l2, x1_mask, x2_mask, y

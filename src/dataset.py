@@ -248,7 +248,7 @@ class DataSet():
             curr_batch_src_len.append(len(src_idx))
             curr_batch_tgt_len.append(len(tgt_idx))
             curr_batch_isparallel.append(isparallel)
-            if len(curr_batch_src) == self.batch_size or i == len(indexs)-1: #full batch or last example                
+            if len(curr_batch_src) == self.batch_size or i == len(indexs)-1: #full batch or last example
                 self.batches_sim.append([self.add_padding(curr_batch_src), self.add_padding(curr_batch_tgt), curr_batch_src_len, curr_batch_tgt_len, curr_batch_isparallel]) 
                 curr_batch_src = []
                 curr_batch_tgt = []
@@ -335,5 +335,13 @@ class DataSet():
                     i_sim = 0
                 yield 'sim', self.batches_sim[indexs_sim[i_sim]]
                 i_sim += 1
+
+
+
+
+
+
+
+
 
 

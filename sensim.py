@@ -10,6 +10,15 @@ from src.dataset import Vocab, DataSet, OpenNMTTokenizer
 from src.model import make_model
 from src.trainer import Trainer
 
+'''
+from src.optim import sequence_mask, st_mask
+import numpy as np
+slen = np.array([2,3,2])
+tlen = np.array([4,3,2])
+mask = st_mask(slen,tlen,0)
+sys.exit()
+'''
+
 class Argv():
 
     def __init__(self, argv):

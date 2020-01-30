@@ -132,10 +132,9 @@ class ComputeLossSim:
         self.opt = opt
         self.R = 1.0
 
-    def __call__(self, hs, ht, mask_st, slen, tlen, y): 
+    def __call__(self, hs, ht, slen, tlen, y): 
         #hs [bs, sl, es] embeddings of source words after encoder (<cls> <bos> s1 s2 ... sI <eos> <pad> ...)
         #ht [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
-        #mask_st [bs, sl, tl] mask contain True for words to be considered and False otherwise
         #slen [bs] length of source sentences (I) in batch
         #tlen [bs] length of target sentences (J) in batch
         #y  [bs] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
@@ -166,7 +165,8 @@ class ComputeLossSim:
 
         elif self.pooling == 'align':
             S = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]
-            aggr = self.aggr(S,mask_st) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence 
+            #st_mask is [bs, sl, tl] containing True for words to consider and False for words to mask (<pad>, <bos>, <eos>)
+            aggr = self.aggr(S,st_mask(slen,tlen,mask_n_initials=2)) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence 
             error = torch.log(1 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
             #sum_error = tf.map_fn(lambda (x, l): tf.reduce_sum(x[2:l-1]), (error_tgt, tl))
             loss = torch.sum(sum_error * mask_t) / torch.sum(mask_t)
@@ -191,41 +191,14 @@ class ComputeLossSim:
         print('exp_rS',exp_rS.size()) #[bs,ls,lt]
 
         #sum_exp_rS = tf.map_fn(lambda (x, l): tf.reduce_sum(x[2:l-1, :], 0), (exp_rS, l_s)) #[B,Ss] (do not sum over <bos> and <eos> [2:l-1])
-        mask_zeros = torch.zeros(S.size(), requires_grad=False)
+        mask_zeros = torch.zeros(S_st.size(), requires_grad=False)
         sum_exp_rS = torch.sum(exp_rS * mask_st,dim=1) #sum over source words (dim=1)
         print('sum_exp_rS',sum_exp_rS.size()) #[bs,lt]
         log_sum_exp_rS = torch.log(sum_exp_rS) 
         print('log_sum_exp_rS',log_sum_exp_rS.size()) #[bs,lt]
         aggr = log_sum_exp_rS / self.R
         print('aggr',aggr.size()) #[bs,lt]
-        sys.exit()
         return aggr
-
-
-def mask_3Dbatch(batch, lengths, value, mask_n_initials=0):
-    #input batch is [batch_size, seq_length, embedding_size]
-    #i set to value those cells batch[b,l,k]:
-    #l == 0 or 1 (if mask_initial) ===> thus masking <cls> and <bos>
-    #l >= lengths[l]-1             ===> thus masking <eos> <pad> ...
-    for b in range(batch.size(0)): #for each sentence batch[b]
-        for l in range(batch.size(1)): #for each token batch[b,l]
-            if l<mask_n_initials or l>=lengths[l]-1:
-                batch[b,l] = [value] * batch.size(2) ### replace all embedding cells of this token by value
-    return batch
-
-
-def mask_3Dtensor(batch, lengths, value, mask_n_initials=0):
-    batch_mask = batch.clone()
-    #input batch is [batch_size, seq_length, embedding_size]
-    #i set to value those cells batch[b,l,k]:
-    #l == 0 or 1 (if mask_initial) ===> thus masking <cls> and <bos>
-    #l >= lengths[l]-1             ===> thus masking <eos> <pad> ...
-    for b in range(batch_mask.size(0)): #for each sentence batch[b]
-        for l in range(batch_mask.size(1)): #for each token batch[b,l]
-            if l<mask_n_initials or l>=lengths[l]-1:
-                for c in range(batch_mask.size(2)): #for each cell batch[b,l,c]
-                    batch_mask[b,l,c] = value ### replace all embedding cells of this token by value
-    return batch_mask
 
 
 def sequence_mask(lengths, mask_n_initials=0):
@@ -236,6 +209,21 @@ def sequence_mask(lengths, mask_n_initials=0):
         return ((msk <= lengths) & (msk > mask_n_initials)) #.t().type(torch.bool)
     return (msk <= lengths) #.t().type(torch.bool)
 
+
+def st_mask(slen,tlen,mask_n_initials=0):
+    assert len(slen)==len(tlen)
+    bs = len(slen)
+    ls = slen.max()
+    lt = tlen.max()
+    #print('matrix is [bs={} x [{},{}]]'.format(bs,ls,lt))
+    #print('slen={}'.format(slen))
+    #print('tlen={}'.format(tlen))
+    msk = torch.zeros([bs,ls,lt], dtype=torch.bool)
+    for b in range(bs):
+        for s in range(mask_n_initials,slen[b]):
+            msk[b,s,mask_n_initials:tlen[b]] = True
+    #print(msk)
+    return msk
 
 
 
