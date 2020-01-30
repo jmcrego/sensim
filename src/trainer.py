@@ -14,6 +14,35 @@ from src.dataset import Vocab, DataSet, OpenNMTTokenizer
 from src.model import make_model
 from src.optim import NoamOpt, LabelSmoothing, CosineSim, AlignSim, ComputeLossMsk, ComputeLossSim
 
+
+def sequence_mask(lengths, mask_n_initials=0):
+    bs = len(lengths)
+    #print('lengths',lengths)
+    l = lengths.max()
+    #print('l',l)
+    msk = np.cumsum(np.ones([bs,l],dtype=int), axis=1).T #[l,bs] (transpose to allow combine with lenghts)
+    #print('msk',msk.shape)
+    mask = (msk <= lengths)
+    if mask_n_initials:
+        mask &= (msk > mask_n_initials)
+    #print('mask',mask)
+    return mask.T #[bs,l]
+
+def st_mask(slen,tlen,mask_n_initials=0):
+    bs = len(slen)
+    ls = slen.max()
+    lt = tlen.max()
+    #print('slen={}'.format(slen))
+    #print('tlen={}'.format(tlen))
+    #print('matrix is [bs:{} x [ls:{},lt:{}]]'.format(bs,ls,lt))
+    msk = np.zeros([bs,ls,lt], dtype=bool)
+    for b in range(bs):
+        for s in range(mask_n_initials,slen[b]):
+            msk[b,s,mask_n_initials:tlen[b]] = True
+    #print('msk',msk)
+    return msk
+
+
 class Trainer():
 
     def __init__(self, opts):
@@ -125,7 +154,7 @@ class Trainer():
                 loss = self.loss_msk(h, y_mask, n_topredict)
             elif step == 'sim': ### fine-tunning
                 sembed = self.steps['sim']['pooling']
-                x1, x2, l1, l2, x1_mask, x2_mask, y = self.sim_batch_cuda(batch) 
+                x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t, mask_st = self.sim_batch_cuda(batch) 
                 #x1 contains the true words in batch_src
                 #x2 contains the true words in batch_tgt
                 #l1 length of sentences in batch
@@ -135,7 +164,7 @@ class Trainer():
                 #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
-                loss = self.loss_sim(h1, h2, l1, l2, y)
+                loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t, mask_st)
                 n_topredict = 1
             else:
                 logging.info('bad step {}'.format(step))
@@ -254,7 +283,7 @@ class Trainer():
         batch_tgt = np.array(batch[1])
         batch_src_len = np.array(batch[2])
         batch_tgt_len = np.array(batch[3])
-        y = np.asarray(batch[4])
+        y = np.array(batch[4])
 
         x1 = torch.from_numpy(batch_src) #[batch_size, max_len] the original words with padding
         x1_mask = torch.as_tensor((batch_src != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
@@ -263,6 +292,10 @@ class Trainer():
         x2 = torch.from_numpy(batch_tgt) #[batch_size, max_len] the original words with padding
         x2_mask = torch.as_tensor((batch_tgt != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
         l2 = torch.from_numpy(batch_tgt_len) #[bs]
+
+        mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2))
+        mask_t = torch.from_numpy(sequence_mask(batch_tgt_len,mask_n_initials=2))
+        mask_st = torch.from_numpy(st_mask(batch_src_len,batch_tgt_len,mask_n_initials=2))
 
         y = torch.as_tensor(y)
         if self.cuda:
@@ -274,8 +307,11 @@ class Trainer():
             l2 = l2.cuda()
             x1x2_mask = x1x2_mask.cuda()
             y = y.cuda()
+            mask_s = mask_s.cuda()
+            mask_t = mask_t.cuda()
+            mask_st = mask_st.cuda()
 
-        return x1, x2, l1, l2, x1_mask, x2_mask, y
+        return x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t, mask_st
 
     def stats(self, n_words_so_far_step,sum_loss_so_far_step,steps_run):
         total_steps = 0

@@ -132,21 +132,21 @@ class ComputeLossSim:
         self.opt = opt
         self.R = 1.0
 
-    def __call__(self, hs, ht, slen, tlen, y): 
+    def __call__(self, hs, ht, slen, tlen, y, mask_s, mask_t, mask_st): 
         #hs [bs, sl, es] embeddings of source words after encoder (<cls> <bos> s1 s2 ... sI <eos> <pad> ...)
         #ht [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
         #slen [bs] length of source sentences (I) in batch
         #tlen [bs] length of target sentences (J) in batch
         #y  [bs] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
-        print('hs',hs.size())
-        print('ht',ht.size())
-        print('slen',slen.size())
-        print('tlen',tlen.size())
-        print('y',y.size())
-        mask_s = sequence_mask(slen,mask_n_initials=2).unsqueeze(-1)
-        mask_t = sequence_mask(tlen,mask_n_initials=2).unsqueeze(-1)
-        print('mask_s',mask_s.size())
-        print('mask_t',mask_t.size())
+        #print('hs',hs.size())
+        #print('ht',ht.size())
+        #print('slen',slen.size())
+        #print('tlen',tlen.size())
+        #print('y',y.size())
+#        mask_s = sequence_mask(slen,mask_n_initials=2).unsqueeze(-1)
+#        mask_t = sequence_mask(tlen,mask_n_initials=2).unsqueeze(-1)
+        #print('mask_s',mask_s.size())
+        #print('mask_t',mask_t.size())
 
         if self.opt is not None:
             self.opt.optimizer.zero_grad()
@@ -167,19 +167,18 @@ class ComputeLossSim:
             loss = self.criterion(s, t, y)
 
         elif self.pooling == 'align':
-            S = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]
+            S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]
             #st_mask is [bs, sl, tl] containing True for words to consider and False for words to mask (<pad>, <bos>, <eos>)
-            aggr = self.aggr(S,st_mask(slen,tlen,mask_n_initials=2)) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence 
+#            mask_st = st_mask(slen,tlen,mask_n_initials=2)
+            aggr = self.aggr(S_st,mask_st) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence 
             sign = torch.ones(aggr.size()) * y.unsqueeze(-1)
-            print('sign',sign.size())
+            #print('sign',sign.size())
             error = torch.log(1 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
-            print('error',error.size())
+            #print('error',error.size())
             sum_error = torch.sum(error * mask_t.squeeze(), dim=1)
-            print('sum_error',sum_error.size())
-#            loss = torch.sum(sum_error * mask_s) / torch.sum(mask_s) ????? mask_s ?
+            #print('sum_error (sum over target words)',sum_error.size())
             loss = torch.mean(sum_error)
-            print('loss',loss.size())
-            sys.exit()
+            print('loss (mean over batch examples)',loss)
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
@@ -192,21 +191,20 @@ class ComputeLossSim:
         return loss.data
 
     def aggr(self,S_st,mask_st):
-        print('S_st',S_st.size()) #[bs, ls, lt]
-        print('mask_st',mask_st.size()) #[bs, ls, lt] contains zero those cells to be padded
+        #print('S_st',S_st.size()) #[bs, ls, lt]
+        #print('mask_st',mask_st.size()) #[bs, ls, lt] contains zero those cells to be padded
         ### The aggregation operation summarizes the alignment scores for each target word
         exp_rS = torch.exp(S_st * self.R)
-        print('exp_rS',exp_rS.size()) #[bs,ls,lt]
-        #sum_exp_rS = tf.map_fn(lambda (x, l): tf.reduce_sum(x[2:l-1, :], 0), (exp_rS, l_s)) #[B,Ss] (do not sum over <bos> and <eos> [2:l-1])
+        #print('exp_rS',exp_rS.size()) #[bs,ls,lt]
         sum_exp_rS = torch.sum(exp_rS * mask_st,dim=1) #sum over source words (dim=1)
-        print('sum_exp_rS',sum_exp_rS.size()) #[bs,lt]
+        #print('sum_exp_rS (sum over source words)',sum_exp_rS.size()) #[bs,lt]
         log_sum_exp_rS = torch.log(sum_exp_rS) 
-        print('log_sum_exp_rS',log_sum_exp_rS.size()) #[bs,lt]
+        #print('log_sum_exp_rS',log_sum_exp_rS.size()) #[bs,lt]
         aggr = log_sum_exp_rS / self.R
-        print('aggr',aggr.size()) #[bs,lt]
+        #print('aggr',aggr.size()) #[bs,lt]
         return aggr
 
-
+'''
 def sequence_mask(lengths, mask_n_initials=0):
     maxlen = lengths.max()
     msk = torch.ones([len(lengths), maxlen]).cumsum(dim=1, dtype=torch.int32).t()
@@ -230,7 +228,7 @@ def st_mask(slen,tlen,mask_n_initials=0):
             msk[b,s,mask_n_initials:tlen[b]] = True
     #print(msk)
     return msk
-
+'''
 
 
 

@@ -28,6 +28,14 @@ str_msk = '<msk>'
 str_sep = '<sep>'
 str_cls = '<cls>'
 
+def add_padding(batch):
+    #batch is a list of lists that may all be equally sized (using <pad>)
+    max_len = max([len(l) for l in batch])
+    for i in range(len(batch)):
+        batch[i] += [idx_pad]*(max_len-len(batch[i]))
+    return batch
+
+
 ####################################################################
 ### OpenNMTTokenizer ###############################################
 ####################################################################
@@ -170,14 +178,6 @@ class DataSet():
         logging.info('read {} btxt sentences'.format(len(self.data_btxt)))
 
 
-    def add_padding(self, batch):
-        #batch is a list of lists that may all be equally sized (using <pad>)
-        max_len = max([len(l) for l in batch])
-        for i in range(len(batch)):
-            batch[i] += [idx_pad]*(max_len-len(batch[i]))
-        return batch
-
-
     def build_mon_batches(self):
         self.batches_mon = []
         indexs = [i for i in range(len(self.data_mono))] #indexs in original order
@@ -192,7 +192,7 @@ class DataSet():
             snt_idx.insert(0,idx_cls)
             curr_batch.append(snt_idx) #<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>
             if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example                
-                self.batches_mon.append(self.add_padding(curr_batch)) 
+                self.batches_mon.append(add_padding(curr_batch)) 
                 curr_batch = []
         logging.info('built {} mon batches'.format(len(self.batches_mon)))
 
@@ -216,7 +216,7 @@ class DataSet():
             snt_idx.extend(tgt_idx)
             curr_batch.append(snt_idx) #<cls> <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <t1>, <t2>, ..., <tn>, <eos>
             if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example                
-                self.batches_par.append(self.add_padding(curr_batch)) 
+                self.batches_par.append(add_padding(curr_batch)) 
                 curr_batch = []
         logging.info('built {} par batches'.format(len(self.batches_par)))
 
@@ -239,7 +239,7 @@ class DataSet():
             src_idx = self.data_btxt[index][0]
             tgt_idx = self.data_btxt[index][1]
             isparallel = 1.0 ### parallel
-            if random.random() < p_uneven and i>0:
+            if random.random() < p_uneven and i > 0:
                 index_prev = indexs[i-1]
                 tgt_idx = self.data_btxt[index_prev][1]
                 isparallel = -1.0 ### NOT parallel
@@ -249,7 +249,10 @@ class DataSet():
             curr_batch_tgt_len.append(len(tgt_idx))
             curr_batch_isparallel.append(isparallel)
             if len(curr_batch_src) == self.batch_size or i == len(indexs)-1: #full batch or last example
-                self.batches_sim.append([self.add_padding(curr_batch_src), self.add_padding(curr_batch_tgt), curr_batch_src_len, curr_batch_tgt_len, curr_batch_isparallel]) 
+                curr_batch_src = add_padding(curr_batch_src)
+                curr_batch_tgt = add_padding(curr_batch_tgt)
+                self.batches_sim.append([curr_batch_src, curr_batch_tgt, curr_batch_src_len, curr_batch_tgt_len, curr_batch_isparallel]) 
+                print('aa i={}'.format(len(self.batches_sim)-1),self.batches_sim[-1])
                 curr_batch_src = []
                 curr_batch_tgt = []
                 curr_batch_src_len = []
@@ -264,7 +267,7 @@ class DataSet():
         self.max_length = max_length
         self.batch_size = batch_size
         self.steps = steps
-        self.read_data(files,token,vocab,10000) #1000 is only used for debugging (delete to avoid filtering)
+        self.read_data(files,token,vocab,1000) #1000 is only used for debugging (delete to avoid filtering)
 
         self.dist_mon = self.steps['mon']['dist']
         self.dist_par = self.steps['par']['dist']
@@ -316,7 +319,7 @@ class DataSet():
         i_mon = 0
         i_par = 0
         i_sim = 0
-        while True: #### infinite loop
+        while True: ### infinite loop
             if not self.run_sim:
                 p = random.random() #[0.0, 1.0)
                 if p < self.dist_mon:
@@ -333,6 +336,7 @@ class DataSet():
             else:
                 if i_sim >= len(indexs_sim):
                     i_sim = 0
+                print('kk {} i={}'.format(len(indexs_sim),indexs_sim[i_sim]),self.batches_sim[indexs_sim[i_sim]])
                 yield 'sim', self.batches_sim[indexs_sim[i_sim]]
                 i_sim += 1
 
