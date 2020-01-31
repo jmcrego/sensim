@@ -75,9 +75,9 @@ class LabelSmoothing(nn.Module):
         return self.criterion(x, Variable(true_dist, requires_grad=False))
 
 
-class CosineSim(nn.Module):
+class CosineSIM(nn.Module):
     def __init__(self, margin=0.0):
-        super(CosineSim, self).__init__()
+        super(CosineSIM, self).__init__()
         self.criterion = nn.CosineEmbeddingLoss(margin=margin, size_average=None, reduce=None, reduction='mean')
         logging.debug('built criterion (cosine)')
         
@@ -85,9 +85,9 @@ class CosineSim(nn.Module):
         return self.criterion(s1, s2, target)
 
 
-class AlignSim(nn.Module):
+class AlignSIM(nn.Module):
     def __init__(self):
-        super(AlignSim, self).__init__()
+        super(AlignSIM, self).__init__()
         self.criterion = nn.MSELoss(size_average=None, reduce=None, reduction='mean') 
         logging.debug('built criterion (align)')
         
@@ -98,7 +98,7 @@ class AlignSim(nn.Module):
 ### Compute losses ###############################################
 ##################################################################
 
-class ComputeLossMsk:
+class ComputeLossMLM:
     def __init__(self, generator, criterion, opt=None):
         self.generator = generator
         self.criterion = criterion
@@ -106,7 +106,7 @@ class ComputeLossMsk:
 
     def __call__(self, h, y, n_topredict): 
         if self.opt is not None:
-            self.opt.optimizer.zero_grad()
+            self.opt.optimizer.zero_grad() #resets parameters gradients (x.grad)
         x_hat = self.generator(h) # project x softmax 
         #x_hat [batch_size, max_len, |vocab|]
         #y     [batch_size, max_len]
@@ -125,7 +125,7 @@ class ComputeLossMsk:
         return loss.data * n_topredict
 
 
-class ComputeLossSim:
+class ComputeLossSIM:
     def __init__(self, criterion, pooling, opt=None):
         self.criterion = criterion
         self.pooling = pooling
@@ -138,71 +138,85 @@ class ComputeLossSim:
         #slen [bs] length of source sentences (I) in batch
         #tlen [bs] length of target sentences (J) in batch
         #y  [bs] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
+        #mask_s [bs,ls]
+        #mask_t [bs,tl]
+        #mask_st [bs,sl,tl]
+        #print('mask_s',mask_s.size())
+        #print(mask_s)
+        #print('mask_t',mask_t.size())
+        #print(mask_t)
+        #print('mask_st',mask_st.size())
+        #print(mask_st)
         #print('hs',hs.size())
+        #print(hs)
         #print('ht',ht.size())
+        #print(ht)
         #print('slen',slen.size())
         #print('tlen',tlen.size())
         #print('y',y.size())
-#        mask_s = sequence_mask(slen,mask_n_initials=2).unsqueeze(-1)
-#        mask_t = sequence_mask(tlen,mask_n_initials=2).unsqueeze(-1)
-        #print('mask_s',mask_s.size())
-        #print('mask_t',mask_t.size())
+        mask_s = mask_s.unsqueeze(-1).type(torch.float64)
+        mask_t = mask_t.unsqueeze(-1).type(torch.float64)
+        mask_st = mask_st.type(torch.float64)
 
         if self.opt is not None:
-            self.opt.optimizer.zero_grad()
+            self.opt.optimizer.zero_grad() #resets parameters gradients (x.grad)
 
         if self.pooling == 'max':
-            s, _ = torch.max(hs * mask_s + (1-mask_s) * torch.float('-Inf'), dim=1)
-            t, _ = torch.max(ht * mask_t + (1-mask_t) * torch.float('-Inf'), dim=1)
+            s, _ = torch.max(hs*mask_s + (1.0-mask_s)*-float('Inf'), dim=1)
+            t, _ = torch.max(ht*mask_t + (1.0-mask_t)*-float('Inf'), dim=1)
             loss = self.criterion(s, t, y)
 
         elif self.pooling == 'mean':
-            s = torch.sum(hs * mask_s, dim=1) / torch.sum(mask_s)
-            t = torch.sum(ht * mask_t, dim=1) / torch.sum(mask_t)
+            s = torch.sum(hs * mask_s, dim=1) / torch.sum(mask_s, dim=1)
+            t = torch.sum(ht * mask_t, dim=1) / torch.sum(mask_t, dim=1)
             loss = self.criterion(s, t, y)
+            print('loss (mean over batch examples)',loss)
 
         elif self.pooling == 'cls':
             s = hs[:, 0, :] # take embedding of first token <cls>
             t = ht[:, 0, :] # take embedding of first token <cls>
             loss = self.criterion(s, t, y)
+            print('loss (mean over batch examples)',loss)
 
         elif self.pooling == 'align':
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]
+            #print('S_st',S_st.size())
+            #print(S_st)
             #st_mask is [bs, sl, tl] containing True for words to consider and False for words to mask (<pad>, <bos>, <eos>)
-#            mask_st = st_mask(slen,tlen,mask_n_initials=2)
-            aggr = self.aggr(S_st,mask_st) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence 
-            sign = torch.ones(aggr.size()) * y.unsqueeze(-1)
+            aggr = self.aggr(S_st,mask_st) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
+            sign = torch.ones(aggr.size()) * y.unsqueeze(-1) 
             #print('sign',sign.size())
-            error = torch.log(1 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
+            error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
             #print('error',error.size())
-            sum_error = torch.sum(error * mask_t.squeeze(), dim=1)
+            #print(error)
+            sum_error = torch.sum(error * mask_t.squeeze(), dim=1) #error of each sentence
             #print('sum_error (sum over target words)',sum_error.size())
-            loss = torch.mean(sum_error)
+            #print(sum_error)
+            loss = torch.mean(sum_error) 
             print('loss (mean over batch examples)',loss)
+            #sys.exit()
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
             sys.exit()
 
-        loss.backward()
+        loss.backward() #computes gradients dloss/dx for parameters x (only x's with requires_grad=True) and accumulates them in x.grad (x.grad += dloss/dx)
         if self.opt is not None:
-            self.opt.step() #performs a parameter update based on the current gradient
+            self.opt.step() #For each parameter x, it performs the parameter update. (x += -lr * x.grad)
 
         return loss.data
 
-    def aggr(self,S_st,mask_st):
+    def aggr(self,S_st,mask_st): #foreach tgt word finds the aggregation over all src words
         #print('S_st',S_st.size()) #[bs, ls, lt]
         #print('mask_st',mask_st.size()) #[bs, ls, lt] contains zero those cells to be padded
-        ### The aggregation operation summarizes the alignment scores for each target word
-        exp_rS = torch.exp(S_st * self.R)
-        #print('exp_rS',exp_rS.size()) #[bs,ls,lt]
-        sum_exp_rS = torch.sum(exp_rS * mask_st,dim=1) #sum over source words (dim=1)
+        #print(mask_st)
+        sum_exp_rS = torch.sum(torch.exp(S_st * self.R) * mask_st,dim=1) #sum over source words (dim=1)
         #print('sum_exp_rS (sum over source words)',sum_exp_rS.size()) #[bs,lt]
-        log_sum_exp_rS = torch.log(sum_exp_rS) 
-        #print('log_sum_exp_rS',log_sum_exp_rS.size()) #[bs,lt]
-        aggr = log_sum_exp_rS / self.R
-        #print('aggr',aggr.size()) #[bs,lt]
-        return aggr
+        #print(sum_exp_rS)
+        log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
+        #print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R.size()) #[bs,lt]
+        #print(log_sum_exp_rS_div_R)
+        return log_sum_exp_rS_div_R
 
 '''
 def sequence_mask(lengths, mask_n_initials=0):

@@ -10,9 +10,9 @@ from collections import defaultdict
 from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
-from src.dataset import Vocab, DataSet, OpenNMTTokenizer
+from src.dataset import Vocab, DataSet, OpenNMTTokenizer, batch
 from src.model import make_model
-from src.optim import NoamOpt, LabelSmoothing, CosineSim, AlignSim, ComputeLossMsk, ComputeLossSim
+from src.optim import NoamOpt, LabelSmoothing, CosineSIM, AlignSIM, ComputeLossMLM, ComputeLossSIM
 
 
 def sequence_mask(lengths, mask_n_initials=0):
@@ -22,7 +22,7 @@ def sequence_mask(lengths, mask_n_initials=0):
     #print('l',l)
     msk = np.cumsum(np.ones([bs,l],dtype=int), axis=1).T #[l,bs] (transpose to allow combine with lenghts)
     #print('msk',msk.shape)
-    mask = (msk <= lengths)
+    mask = (msk <= lengths-1) ### i use lenghts-1 because the last unpadded word is <eos> and i want it masked too
     if mask_n_initials:
         mask &= (msk > mask_n_initials)
     #print('mask',mask)
@@ -37,8 +37,8 @@ def st_mask(slen,tlen,mask_n_initials=0):
     #print('matrix is [bs:{} x [ls:{},lt:{}]]'.format(bs,ls,lt))
     msk = np.zeros([bs,ls,lt], dtype=bool)
     for b in range(bs):
-        for s in range(mask_n_initials,slen[b]):
-            msk[b,s,mask_n_initials:tlen[b]] = True
+        for s in range(mask_n_initials,slen[b]-1):  ### i use slen[b]-1 because the last unpadded word is <eos> and i want it masked too
+            msk[b,s,mask_n_initials:tlen[b]-1] = True  ### i use tlen[b]-1 because the last unpadded word is <eos> and i want it masked too
     #print('msk',msk)
     return msk
 
@@ -78,16 +78,16 @@ class Trainer():
 
         if self.steps['sim']['run']:
             if self.steps['sim']['pooling'] == 'align':
-                self.criterion_sim = AlignSim()
+                self.criterion_sim = AlignSIM()
             else:
-                self.criterion_sim = CosineSim()
+                self.criterion_sim = CosineSIM()
             if self.cuda:
                 self.criterion_sim.cuda()
 
         self.load_checkpoint() #loads if exists
-        self.loss_msk = ComputeLossMsk(self.model.generator, self.criterion_msk, self.optimizer)
+        self.loss_mlm = ComputeLossMLM(self.model.generator, self.criterion_msk, self.optimizer)
         if self.steps['sim']['run']:
-            self.loss_sim = ComputeLossSim(self.criterion_sim, self.steps['sim']['pooling'], self.optimizer)
+            self.loss_sim = ComputeLossSIM(self.criterion_sim, self.steps['sim']['pooling'], self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
 
         logging.info('read Train data')
@@ -137,23 +137,24 @@ class Trainer():
         sum_loss_so_far_step = defaultdict(float)
         steps_run = defaultdict(int)
         start = time.time()
-        for step, batch in self.data_train:
+        for batch in self.data_train:
             self.model.train()
             ###
             ### run step
             ###
-            if step == 'par' or step == 'mon': ### pre-training
-                x, x_mask, y_mask, n_topredict = self.msk_batch_cuda(batch,step)
+            if not self.steps['sim']['run']: ### pre-training (MLM)
+                step = 'mlm'
+                x, x_mask, y_mask, n_topredict = self.mlm_batch_cuda(batch)
                 #x contains the true words in batch after some masked (<msk>, random, same)
-                #x_mask contains true for padded words, false for not padded words in batch
-                #y_mask contains the source true words to predict of masked words, <pad> otherwise
+                #x_mask contains true for words to be predicted (masked), false otherwise
+                #y_mask contains the original words of those cells to be predicted, <pad> otherwise
                 if n_topredict == 0: #nothing to predict
                     logging.info('batch with nothing to predict')
                     continue
                 h = self.model.forward(x,x_mask) 
-                loss = self.loss_msk(h, y_mask, n_topredict)
-            elif step == 'sim': ### fine-tunning
-                sembed = self.steps['sim']['pooling']
+                loss = self.loss_mlm(h, y_mask, n_topredict)
+            else: ### fine-tunning (SIM)
+                step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t, mask_st = self.sim_batch_cuda(batch) 
                 #x1 contains the true words in batch_src
                 #x2 contains the true words in batch_tgt
@@ -162,13 +163,13 @@ class Trainer():
                 #x1_mask contains true for padded words, false for not padded words in x1
                 #x2_mask contains true for padded words, false for not padded words in x2
                 #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
+                #mask_s
+                #mask_t
+                #mask_st
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
                 loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t, mask_st)
                 n_topredict = 1
-            else:
-                logging.info('bad step {}'.format(step))
-                sys.exit()
 
             self.n_steps_so_far += 1
             n_words_so_far += n_topredict
@@ -234,23 +235,19 @@ class Trainer():
         logging.info('averaged {} models into {}'.format(len(files), fout))
 
 
-    def msk_batch_cuda(self, batch, step):
-        batch = np.asarray(batch)
-        x = torch.from_numpy(batch) #[batch_size, max_len] the original words with padding
-        x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
-        y_mask = x.clone() #[batch_size, max_len]
+    def mlm_batch_cuda(self, batch):
+        batch = np.array(batch.idx_src)
+        x = torch.from_numpy(batch) #[batch_size, max_len] contains the original words. some will be masked
+        x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]. Contains true for words to be predicted (masked), false otherwise
+        y_mask = x.clone() #[batch_size, max_len]. Contains the original value of masked words in x. <pad> for the rest
 
-        if step == 'mon':
-            prob = self.steps['mon']['prob']
-            same = self.steps['mon']['same']
-            rand = self.steps['mon']['rand']
-        else:
-            prob = self.steps['par']['prob']
-            same = self.steps['par']['same']
-            rand = self.steps['par']['rand']
-        mask = 1.0 - same - rand
-        if mask <= 0.0:
-            logging.error('p_mask={} l<= zero'.format(mask))
+        p_mask = self.steps['mlm']['p_mask']
+        r_same = self.steps['mlm']['r_same']
+        r_rand = self.steps['mlm']['r_rand']
+        r_mask = 1.0 - r_same - r_rand
+
+        if r_mask <= 0.0:
+            logging.error('mask={} l<= zero'.format(mask))
             sys.exit()
 
         n_topredict = 0
@@ -259,13 +256,13 @@ class Trainer():
                 y_mask[i][j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
                 if not self.vocab.is_reserved(x[i][j]):
                     r = random.random()     # float in range [0.0, 1,0)
-                    if r < prob:            ### is masked
+                    if r < p_mask:          ### is masked
                         n_topredict += 1
                         y_mask[i][j] = x[i][j]   # use the original (true) word rather than <pad> 
                         q = random.random() # float in range [0.0, 1,0)
-                        if q < same:        # same
+                        if q < r_same:        # same
                             pass
-                        elif q < same+rand: # rand among all vocab words
+                        elif q < r_same+r_rand: # rand among all vocab words
                             x[i][j] = random.randint(7,len(self.vocab)-1) # int in range [7, |vocab|)
                         else:               # <msk>
                             x[i][j] = self.vocab.idx_msk
@@ -279,11 +276,11 @@ class Trainer():
 
 
     def sim_batch_cuda(self, batch):
-        batch_src = np.array(batch[0])
-        batch_tgt = np.array(batch[1])
-        batch_src_len = np.array(batch[2])
-        batch_tgt_len = np.array(batch[3])
-        y = np.array(batch[4])
+        batch_src = np.array(batch.idx_src)
+        batch_tgt = np.array(batch.idx_tgt)
+        batch_src_len = np.array(batch.lsrc)
+        batch_tgt_len = np.array(batch.ltgt)
+        y = np.array(batch.isParallel)
 
         x1 = torch.from_numpy(batch_src) #[batch_size, max_len] the original words with padding
         x1_mask = torch.as_tensor((batch_src != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
@@ -293,11 +290,18 @@ class Trainer():
         x2_mask = torch.as_tensor((batch_tgt != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
         l2 = torch.from_numpy(batch_tgt_len) #[bs]
 
-        mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2))
-        mask_t = torch.from_numpy(sequence_mask(batch_tgt_len,mask_n_initials=2))
-        mask_st = torch.from_numpy(st_mask(batch_src_len,batch_tgt_len,mask_n_initials=2))
+        mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2)) 
+        mask_t = torch.from_numpy(sequence_mask(batch_tgt_len,mask_n_initials=2)) 
+        mask_st = torch.from_numpy(st_mask(batch_src_len,batch_tgt_len,mask_n_initials=2)) 
 
         y = torch.as_tensor(y)
+
+        #print('src',batch.src)
+        #print('idx_src',batch.idx_src)
+        #print('tgt',batch.tgt)
+        #print('idx_tgt',batch.idx_tgt)
+        #print('isParallel',batch.isParallel)
+
         if self.cuda:
             x1 = x1.cuda()
             x1_mask = x1_mask.cuda()

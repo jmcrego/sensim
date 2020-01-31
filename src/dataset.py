@@ -28,13 +28,6 @@ str_msk = '<msk>'
 str_sep = '<sep>'
 str_cls = '<cls>'
 
-def add_padding(batch):
-    #batch is a list of lists that may all be equally sized (using <pad>)
-    max_len = max([len(l) for l in batch])
-    for i in range(len(batch)):
-        batch[i] += [idx_pad]*(max_len-len(batch[i]))
-    return batch
-
 
 ####################################################################
 ### OpenNMTTokenizer ###############################################
@@ -52,7 +45,6 @@ class OpenNMTTokenizer():
 
   def tokenize(self, text):
     tokens, _ = self.tokenizer.tokenize(text)
-    #print(tokens)
     return tokens
 
   def detokenize(self, tokens):
@@ -126,32 +118,144 @@ class Vocab():
         return self.tok_to_idx[s]
 
 ####################################################################
+### batch ##########################################################
+####################################################################
+
+class batch():
+    def __init__(self):
+        self.idx_src = []
+        self.idx_tgt = []
+        self.lsrc = []
+        self.ltgt = []
+        self.src = []
+        self.tgt = []
+        self.isParallel = []
+        self.maxlsrc = 0
+        self.maxltgt = 0
+
+    def __len__(self):
+        return len(self.idx_src)
+
+    def add_single(self, src, idx_src): ### used for pre-training (MLM): uses <cls> <bos> ... <eos>
+        self.src.append(src)
+        self.tgt.append([])
+        self.idx_tgt.append([])
+        self.ltgt.append(0)
+        self.isParallel.append(0.0)
+
+        idx_src.insert(0,idx_bos)
+        idx_src.append(idx_eos)
+        idx_src.insert(0,idx_cls)
+
+        self.lsrc.append(len(idx_src))
+        if len(idx_src) < self.maxlsrc:
+            idx_src += [idx_pad]*(self.maxlsrc-len(idx_src)) 
+        elif len(idx_src) > self.maxlsrc:
+            self.maxlsrc = len(idx_src)
+            for i in range(len(self.idx_src)):
+                self.idx_src[i] += [idx_pad]*(self.maxlsrc-len(self.idx_src[i]))
+        self.idx_src.append(idx_src) ### [<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <pad>, ...]   (lsrc is the position of <eos> +1)
+
+    def add_pair_join(self, src, idx_src, tgt, idx_tgt): ### used for pre-training (MLM): uses <cls>, <bos> ... <eos> <sep> <bos> ... <eos>
+        self.src.append(src)
+        self.tgt.append(tgt)
+        self.idx_tgt.append([])
+        self.ltgt.append(0)
+        self.isParallel.append(0.0)
+
+        idx_src.insert(0,idx_bos)
+        idx_src.append(idx_eos)
+        idx_src.insert(0,idx_cls)
+
+        idx_tgt.insert(0,idx_bos)
+        idx_tgt.append(idx_eos)
+        idx_tgt.insert(0,idx_sep)
+
+        idx_src += idx_tgt
+
+        self.lsrc.append(len(idx_src))
+        if len(idx_src) < self.maxlsrc:
+            idx_src += [idx_pad]*(self.maxlsrc-len(idx_src)) 
+        elif len(idx_src) > self.maxlsrc:
+            self.maxlsrc = len(idx_src)
+            for i in range(len(self.idx_src)):
+                self.idx_src[i] += [idx_pad]*(self.maxlsrc-len(self.idx_src[i]))
+        self.idx_src.append(idx_src) ### [<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <pad>, ...]   (lsrc is the position of last <eos> +1)
+
+
+    def add_pair(self, src, idx_src, tgt, idx_tgt, isParallel): ### used for fine-tunning (SIM): uses <cls>, <bos> ... <eos> in both sides
+        self.src.append(src)
+        self.tgt.append(tgt)
+
+        self.isParallel.append(isParallel)
+
+        idx_src.insert(0,idx_bos)
+        idx_src.append(idx_eos)
+        idx_src.insert(0,idx_cls)
+
+        idx_tgt.insert(0,idx_bos)
+        idx_tgt.append(idx_eos)
+        idx_tgt.insert(0,idx_cls)
+
+        self.lsrc.append(len(idx_src))
+        if len(idx_src) < self.maxlsrc:
+            idx_src += [idx_pad]*(self.maxlsrc-len(idx_src)) 
+        elif len(idx_src) > self.maxlsrc:
+            self.maxlsrc = len(idx_src)
+            for i in range(len(self.idx_src)):
+                self.idx_src[i] += [idx_pad]*(self.maxlsrc-len(self.idx_src[i]))
+        self.idx_src.append(idx_src) ### [<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <pad>, ...]   (lsrc is the position of <eos> +1)
+
+        self.ltgt.append(len(idx_tgt))
+        if len(idx_tgt) < self.maxltgt:
+            idx_tgt += [idx_pad]*(self.maxltgt-len(idx_tgt)) 
+        elif len(idx_tgt) > self.maxltgt:
+            self.maxltgt = len(idx_tgt)
+            for i in range(len(self.idx_tgt)):
+                self.idx_tgt[i] += [idx_pad]*(self.maxltgt-len(self.idx_tgt[i]))
+        self.idx_tgt.append(idx_tgt) ### [<cls>, <bos>, <t1>, <t2>, ..., <tn>, <eos>, <pad>, ...]   (ltgt is the position of <eos> +1)
+
+
+####################################################################
 ### DataSet ########################################################
 ####################################################################
+
 class DataSet():
 
-    def read_data(self, files, token, vocab, max_num_examples=0):
-        self.data_mono = []
-        self.data_btxt = []
+    def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0, allow_shuffle=False, infinite=False):
+        self.allow_shuffle = allow_shuffle
+        self.infinite = infinite
+        self.max_length = max_length
+        self.batch_size = batch_size
+        self.steps = steps
+        self.do_sim = self.steps['sim']['run']
+        self.p_uneven = self.steps['sim']['p_uneven']
+
+        ##################
+        ### read files ###
+        ##################
+        max_num_sents = 1000 ### jmcrego
+        self.data = []
         for i in range(len(files)):
-            if len(files[i])==1:
-                file = files[i][0]
-                if file.endswith('.gz'): f = gzip.open(file, 'rb')
-                else: f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
+            if len(files[i])==1: ############# single file ##########################################
+                fsrc = files[i][0]
+                if self.do_sim: ### skip when fine-tuning on similarity
+                    logging.info('skip single file: {}'.format(fsrc))
+                    continue
+                if fsrc.endswith('.gz'): fs = gzip.open(fsrc, 'rb')
+                else: fs = io.open(fsrc, 'r', encoding='utf-8', newline='\n', errors='ignore')
                 n = 0
                 m = 0
-                for ls in f:
+                for ls in fs:
                     n += 1
-                    src_idx = [vocab[s] for s in token.tokenize(ls)]
-                    if self.max_length > 0 and len(src_idx) > self.max_length: 
+                    src = [s for s in token.tokenize(ls)]
+                    if self.max_length > 0 and len(src) > self.max_length: 
                         continue
                     m += 1
-                    src_idx.insert(0,idx_bos)
-                    src_idx.append(idx_eos)
-                    self.data_mono.append(src_idx) ### [<bos>, <w1>, <w2>, ..., <wn>, <eos>]
-                    if max_num_examples > 0 and m >= max_num_examples: break
-                logging.info('read {} out of {} sentences from file [{}]'.format(m,n,file))
-            else:
+                    self.data.append([src,[]]) ### [s1, s2, ..., sn], [t1, t2, ..., tn]
+                    if max_num_sents > 0 and m >= max_num_sents: break
+                logging.info('read {} out of {} sentences from file [{}]'.format(m,n,fsrc))
+            else: ############################ two files ############################################
                 fsrc = files[i][0]
                 ftgt = files[i][1]
                 if fsrc.endswith('.gz'): fs = gzip.open(fsrc, 'rb')
@@ -162,184 +266,68 @@ class DataSet():
                 m = 0
                 for ls, lt in zip(fs,ft):
                     n += 1
-                    src_idx = [vocab[s] for s in token.tokenize(ls)]
-                    tgt_idx = [vocab[t] for t in token.tokenize(lt)]
-                    if self.max_length > 0 and len(src_idx)+len(tgt_idx) > self.max_length: 
+                    src = [s for s in token.tokenize(ls)]
+                    tgt = [t for t in token.tokenize(lt)]
+                    if self.max_length > 0 and len(src)+len(tgt) > self.max_length: 
                         continue
                     m += 1
-                    src_idx.insert(0,idx_bos)
-                    src_idx.append(idx_eos)
-                    tgt_idx.insert(0,idx_bos)
-                    tgt_idx.append(idx_eos)
-                    self.data_btxt.append([src_idx,tgt_idx]) ### [<bos>, <s1>, <s2>, ..., <sn>, <eos>], [<bos>, <t1>, <t2>, ..., <tn>, <eos>]
-                    if max_num_examples > 0 and m >= max_num_examples: break
+                    self.data.append([src,tgt]) ### [s1, s2, ..., sn], [t1, t2, ..., tn]
+                    if max_num_sents > 0 and m >= max_num_sents: break
                 logging.info('read {} out of {} sentences from files [{},{}]'.format(m,n,fsrc,ftgt))
-        logging.info('read {} mono sentences'.format(len(self.data_mono)))
-        logging.info('read {} btxt sentences'.format(len(self.data_btxt)))
+        logging.info('read {} examples'.format(len(self.data)))
 
-
-    def build_mon_batches(self):
-        self.batches_mon = []
-        indexs = [i for i in range(len(self.data_mono))] #indexs in original order
+        #####################
+        ### build batches ###
+        #####################
+        self.batches = []
+        indexs = [i for i in range(len(self.data))] #indexs in original order
         if self.allow_shuffle:
-            logging.debug('sorting data_mon to minimize padding')
-            data_len = [len(x) for x in self.data_mono]
+            logging.debug('sorting data to minimize padding')
+            data_len = [len(x[0])+len(x[1]) for x in self.data]
             indexs = np.argsort(data_len) #indexs sorted by length of data
-        curr_batch = []
+
+        currbatch = batch()
         for i in range(len(indexs)):
             index = indexs[i]
-            snt_idx = self.data_mono[index]
-            snt_idx.insert(0,idx_cls)
-            curr_batch.append(snt_idx) #<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>
-            if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example                
-                self.batches_mon.append(add_padding(curr_batch)) 
-                curr_batch = []
-        logging.info('built {} mon batches'.format(len(self.batches_mon)))
-
-
-    def build_par_batches(self):
-        self.batches_par = []
-        indexs = [i for i in range(len(self.data_btxt))] #indexs in original order
-        if self.allow_shuffle:
-            logging.debug('sorting data_par to minimize padding')
-            data_len = [len(x[0])+len(x[1]) for x in self.data_btxt]
-            indexs = np.argsort(data_len) #indexs sorted by length of data
-        curr_batch = []
-        for i in range(len(indexs)):
-            index = indexs[i]
-            src_idx = self.data_btxt[index][0]
-            tgt_idx = self.data_btxt[index][1]
-            snt_idx = []
-            snt_idx.append(idx_cls)
-            snt_idx.extend(src_idx)
-            snt_idx.append(idx_sep)
-            snt_idx.extend(tgt_idx)
-            curr_batch.append(snt_idx) #<cls> <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <t1>, <t2>, ..., <tn>, <eos>
-            if len(curr_batch) == self.batch_size or i == len(indexs)-1: #full batch or last example                
-                self.batches_par.append(add_padding(curr_batch)) 
-                curr_batch = []
-        logging.info('built {} par batches'.format(len(self.batches_par)))
-
-
-    def build_sim_batches(self):
-        self.batches_sim = []
-        p_uneven = self.steps['sim']['p_uneven']
-        indexs = [i for i in range(len(self.data_btxt))] #indexs in original order
-        if self.allow_shuffle:
-            logging.debug('sorting data_btxt to minimize padding')
-            data_len = [len(x[0]) for x in self.data_btxt]
-            indexs = np.argsort(data_len) #indexs sorted by length of data
-        curr_batch_src = []
-        curr_batch_tgt = []
-        curr_batch_src_len = []
-        curr_batch_tgt_len = []
-        curr_batch_isparallel = []
-        for i in range(len(indexs)):
-            index = indexs[i]
-            src_idx = self.data_btxt[index][0]
-            tgt_idx = self.data_btxt[index][1]
-            isparallel = 1.0 ### parallel
-            if random.random() < p_uneven and i > 0:
-                index_prev = indexs[i-1]
-                tgt_idx = self.data_btxt[index_prev][1]
-                isparallel = -1.0 ### NOT parallel
-            curr_batch_src.append(src_idx)
-            curr_batch_tgt.append(tgt_idx)
-            curr_batch_src_len.append(len(src_idx))
-            curr_batch_tgt_len.append(len(tgt_idx))
-            curr_batch_isparallel.append(isparallel)
-            if len(curr_batch_src) == self.batch_size or i == len(indexs)-1: #full batch or last example
-                curr_batch_src = add_padding(curr_batch_src)
-                curr_batch_tgt = add_padding(curr_batch_tgt)
-                self.batches_sim.append([curr_batch_src, curr_batch_tgt, curr_batch_src_len, curr_batch_tgt_len, curr_batch_isparallel]) 
-                print('aa i={}'.format(len(self.batches_sim)-1),self.batches_sim[-1])
-                curr_batch_src = []
-                curr_batch_tgt = []
-                curr_batch_src_len = []
-                curr_batch_tgt_len = []
-                curr_batch_isparallel = []
-        logging.info('built {} sim batches'.format(len(self.batches_sim)))
-
-
-    def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0, allow_shuffle=False, infinite=False):
-        self.allow_shuffle = allow_shuffle
-        self.infinite = infinite
-        self.max_length = max_length
-        self.batch_size = batch_size
-        self.steps = steps
-        self.read_data(files,token,vocab,1000) #1000 is only used for debugging (delete to avoid filtering)
-
-        self.dist_mon = self.steps['mon']['dist']
-        self.dist_par = self.steps['par']['dist']
-        self.run_sim = self.steps['sim']['run']
-        if self.run_sim:
-            self.build_sim_batches()
-        else:
-            if self.dist_mon > 0.0:
-                self.build_mon_batches()
-            if self.dist_par > 0.0:
-                self.build_par_batches()
+            src = self.data[index][0]
+            idx_src = [vocab[s] for s in src]
+            if self.do_sim: ### fine tunning (SIM) 
+                if random.random() < self.p_uneven and i > 0:
+                    isParallel = -1.0 ### NOT parallel
+                    index = indexs[i-1]
+                else:
+                    isParallel = 1.0 ### parallel
+                    index = indexs[i]
+                tgt = self.data[index][1]
+                idx_tgt = [vocab[t] for t in tgt]
+                currbatch.add_pair(src,idx_src,tgt,idx_tgt,isParallel)
+            else: ### pre-training (MLM)
+                if len(self.data[index]) > 1:
+                    tgt = self.data[index][1]
+                    idx_tgt = [vocab[t] for t in tgt]
+                    currbatch.add_pair_join(src,idx_src,tgt,idx_tgt)
+                else:
+                    currbatch.add_single(src,idx_src)
+            if len(currbatch) == self.batch_size or i == len(indexs)-1: ### record new batch
+                self.batches.append(currbatch)
+                currbatch = batch()
+        logging.info('built {} batches'.format(len(self.batches)))
 
 
     def __iter__(self):
-        ### if is validation/test set then i loop once over all the examples
-        ### no need to shuffle
-        if not self.infinite: 
-            for i in range(len(self.batches_mon)):
-                yield 'mon', self.batches_mon[i]
-            for i in range(len(self.batches_par)):
-                yield 'par', self.batches_par[i]
-            for i in range(len(self.batches_sim)):
-                yield 'sim', self.batches_sim[i]
-            return
 
-        ### if training i loop forever following the distributions indicated by self.steps['mon']['dist'] and self.steps['par']['dist']
-        if self.run_sim:
-            if len(self.batches_sim) == 0:
-                logging.error('no batches_sim entries and run_sim={}'.format(run_sim))
-                sys.exit()
-            indexs_sim = [i for i in range(len(self.batches_sim))]
+        indexs = [i for i in range(len(self.batches))]
+        while True: 
+
             if self.allow_shuffle: 
-                shuffle(indexs_sim)
+                logging.debug('shuffling batches')
+                shuffle(indexs)
 
-        else:
-            if self.dist_mon > 0.0 and len(self.batches_mon) == 0:
-                logging.error('no batches_mon entries and dist_mon={:.2f}'.format(self.dist_mon))
-                sys.exit()
+            for index in indexs:
+                yield self.batches[index]
 
-            if self.dist_par > 0.0 and len(self.batches_par) == 0:
-                logging.error('no batches_par entries and dist_par={:.2f}'.format(self.dist_par))
-                sys.exit()
-            indexs_mon = [i for i in range(len(self.batches_mon))]
-            indexs_par = [i for i in range(len(self.batches_par))]
-            if self.allow_shuffle: 
-                shuffle(indexs_mon)
-                shuffle(indexs_par)
-
-        i_mon = 0
-        i_par = 0
-        i_sim = 0
-        while True: ### infinite loop
-            if not self.run_sim:
-                p = random.random() #[0.0, 1.0)
-                if p < self.dist_mon:
-                    if i_mon >= len(indexs_mon):
-                        i_mon = 0
-                    yield 'mon', self.batches_mon[indexs_mon[i_mon]]
-                    i_mon += 1
-
-                elif p < self.dist_mon+self.dist_par:
-                    if i_par >= len(indexs_par):
-                        i_par = 0
-                    yield 'par', self.batches_par[indexs_par[i_par]]
-                    i_par += 1
-            else:
-                if i_sim >= len(indexs_sim):
-                    i_sim = 0
-                print('kk {} i={}'.format(len(indexs_sim),indexs_sim[i_sim]),self.batches_sim[indexs_sim[i_sim]])
-                yield 'sim', self.batches_sim[indexs_sim[i_sim]]
-                i_sim += 1
-
+            if not self.infinite:
+                break
 
 
 
