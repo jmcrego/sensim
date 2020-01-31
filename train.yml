@@ -17,7 +17,7 @@ batch_size: [2, 2]
 train_steps: 1000000
 steps: 
   mlm: { p_mask: 0.15, r_same: 0.1, r_rand: 0.1 }
-  sim: { run: false, p_uneven: 0.5, pooling: 'align' } #max, mean, cls, align
+  sim: { run: true, p_uneven: 0.5, pooling: 'align' } #max, mean, cls, align
 checkpoint_every_steps: 1000
 validation_every_steps: 5000
 report_every_steps: 10

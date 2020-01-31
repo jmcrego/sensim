@@ -151,11 +151,15 @@ class Trainer():
                 if n_topredict == 0: #nothing to predict
                     logging.info('batch with nothing to predict')
                     continue
-                h = self.model.forward(x,x_mask) 
+                h = self.model.forward(x,x_mask)
                 loss = self.loss_mlm(h, y_mask, n_topredict)
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t, mask_st = self.sim_batch_cuda(batch) 
+                print('x1',x1.size())
+                print(x1)
+                print('x1_mask',x1_mask.size())
+                print(x1_mask)
                 #x1 contains the true words in batch_src
                 #x2 contains the true words in batch_tgt
                 #l1 length of sentences in batch
@@ -168,6 +172,8 @@ class Trainer():
                 #mask_st
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
+                print('h1',h1.size())
+                print(h1)
                 loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t, mask_st)
                 n_topredict = 1
 
