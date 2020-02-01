@@ -91,11 +91,15 @@ class CosineSIM(nn.Module):
 class AlignSIM(nn.Module):
     def __init__(self):
         super(AlignSIM, self).__init__()
-        self.criterion = nn.MSELoss(size_average=None, reduce=None, reduction='mean') 
+        #self.criterion = nn.MSELoss(size_average=None, reduce=None, reduction='mean') 
         logging.debug('built criterion (align)')
         
-    def forward(self, y_hat, target):
-        return self.criterion(y_hat, target)
+    def forward(self, aggr, y, mask_t):
+        sign = torch.ones(aggr.size()) * y.unsqueeze(-1) 
+        error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
+        sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence
+        loss = torch.mean(sum_error) 
+        return loss
 
 ##################################################################
 ### Compute losses ###############################################
@@ -183,23 +187,8 @@ class ComputeLossSIM:
 
         elif self.pooling == 'align':
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]
-            #print('S_st',S_st.size())
-            #print(S_st)
-            #st_mask is [bs, sl, tl] containing True for words to consider and False for words to mask (<pad>, <bos>, <eos>)
-            aggr = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
-            #print('aggr',aggr.size())
-            #print(aggr)
-            sign = torch.ones(aggr.size()) * y.unsqueeze(-1) 
-            #print('sign',sign.size())
-            #print(sign)
-            #loss = self.criterion(aggr,sign) # i dont use MSE to compute loss
-            error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
-            #print('error',error.size())
-            #print(error)
-            sum_error = torch.sum(error * mask_t.squeeze(), dim=1) #error of each sentence
-            #print('sum_error (sum over target words)',sum_error.size())
-            #print(sum_error)
-            loss = torch.mean(sum_error) 
+            aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
+            loss = self.criterion(aggr_t,y,mask_t.squeeze())
             print('loss (mean over batch examples)',loss)
 
         else:
