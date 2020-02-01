@@ -115,7 +115,7 @@ class ComputeLossMLM:
         x_hat = x_hat.contiguous().view(-1, x_hat.size(-1))
         y = y.contiguous().view(-1)
 
-        loss = self.criterion(x_hat, y) / n_topredict #(normalised per token predicted)_
+        loss = self.criterion(x_hat, y) #/ n_topredict #(normalised per token predicted)_
         return loss 
 
 
