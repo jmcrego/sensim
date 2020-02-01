@@ -14,6 +14,9 @@ class NoamOpt:
         self._rate = 0
         logging.debug('built NoamOpt')
         
+    def zero_grad(self):
+        self.optimizer.zero_grad()
+
     def step(self):
         self._step += 1
         rate = self.rate()
@@ -105,8 +108,8 @@ class ComputeLossMLM:
         self.opt = opt
 
     def __call__(self, h, y, n_topredict): 
-        if self.opt is not None:
-            self.opt.optimizer.zero_grad() #resets parameters gradients (x.grad)
+#        if self.opt is not None:
+#            self.opt.optimizer.zero_grad() #resets parameters gradients (x.grad)
         x_hat = self.generator(h) # project x softmax 
         #x_hat [batch_size, max_len, |vocab|]
         #y     [batch_size, max_len]
@@ -119,10 +122,10 @@ class ComputeLossMLM:
         #logging.debug('batch {}/{} Acc={:.2f}'.format(n_ok,n_topredict,100.0*n_ok/n_topredict))
 
         loss = self.criterion(x_hat, y) / n_topredict #(normalised per token predicted)_
-        loss.backward()
-        if self.opt is not None:
-            self.opt.step() #performs a parameter update based on the current gradient
-        return loss.data * n_topredict
+#        loss.backward()
+#        if self.opt is not None:
+#            self.opt.step() #performs a parameter update based on the current gradient
+        return loss * n_topredict
 
 
 class ComputeLossSIM:
@@ -158,8 +161,8 @@ class ComputeLossSIM:
         mask_t = mask_t.unsqueeze(-1).type(torch.float64)
         mask_st = mask_st.type(torch.float64)
 
-        if self.opt is not None:
-            self.opt.optimizer.zero_grad() #resets parameters gradients (x.grad)
+#        if self.opt is not None:
+#            self.opt.optimizer.zero_grad() #resets parameters gradients (x.grad)
 
         if self.pooling == 'max':
             s, _ = torch.max(hs*mask_s + (1.0-mask_s)*-float('Inf'), dim=1)
@@ -183,9 +186,13 @@ class ComputeLossSIM:
             #print('S_st',S_st.size())
             #print(S_st)
             #st_mask is [bs, sl, tl] containing True for words to consider and False for words to mask (<pad>, <bos>, <eos>)
-            aggr = self.aggr(S_st,mask_st) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
+            aggr = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
+            #print('aggr',aggr.size())
+            #print(aggr)
             sign = torch.ones(aggr.size()) * y.unsqueeze(-1) 
             #print('sign',sign.size())
+            #print(sign)
+            #loss = self.criterion(aggr,sign) # i dont use MSE to compute loss
             error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
             #print('error',error.size())
             #print(error)
@@ -194,24 +201,26 @@ class ComputeLossSIM:
             #print(sum_error)
             loss = torch.mean(sum_error) 
             print('loss (mean over batch examples)',loss)
-            #sys.exit()
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
             sys.exit()
 
-        loss.backward() #computes gradients dloss/dx for parameters x (only x's with requires_grad=True) and accumulates them in x.grad (x.grad += dloss/dx)
-        if self.opt is not None:
-            self.opt.step() #For each parameter x, it performs the parameter update. (x += -lr * x.grad)
+#        loss.backward() #computes gradients dloss/dx for parameters x (only x's with requires_grad=True) and accumulates them in x.grad (x.grad += dloss/dx)
+#        if self.opt is not None:
+#            self.opt.step() #For each parameter x, it performs the parameter update. (x += -lr * x.grad)
+        return loss
 
-        return loss.data
-
-    def aggr(self,S_st,mask_st): #foreach tgt word finds the aggregation over all src words
+    def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
         #print('S_st',S_st.size()) #[bs, ls, lt]
+        #print('mask_s',mask_s.size())
         #print('mask_st',mask_st.size()) #[bs, ls, lt] contains zero those cells to be padded
         #print(mask_st)
-        sum_exp_rS = torch.sum(torch.exp(S_st * self.R) * mask_st,dim=1) #sum over source words (dim=1)
-        #print('sum_exp_rS (sum over source words)',sum_exp_rS.size()) #[bs,lt]
+        exp_rS = torch.exp(S_st * self.R)
+        #print('exp_rS',exp_rS.size())
+        #print(exp_rS)
+        sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
+        #print('sum_exp_rS (sum over src words)',sum_exp_rS.size()) #[bs,lt]
         #print(sum_exp_rS)
         log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
         #print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R.size()) #[bs,lt]

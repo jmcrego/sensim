@@ -32,14 +32,11 @@ def st_mask(slen,tlen,mask_n_initials=0):
     bs = len(slen)
     ls = slen.max()
     lt = tlen.max()
-    #print('slen={}'.format(slen))
-    #print('tlen={}'.format(tlen))
-    #print('matrix is [bs:{} x [ls:{},lt:{}]]'.format(bs,ls,lt))
     msk = np.zeros([bs,ls,lt], dtype=bool)
     for b in range(bs):
         for s in range(mask_n_initials,slen[b]-1):  ### i use slen[b]-1 because the last unpadded word is <eos> and i want it masked too
             msk[b,s,mask_n_initials:tlen[b]-1] = True  ### i use tlen[b]-1 because the last unpadded word is <eos> and i want it masked too
-    #print('msk',msk)
+    #print('st_mask',msk)
     return msk
 
 
@@ -71,6 +68,7 @@ class Trainer():
         eps = opts.cfg['eps']
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         self.optimizer = NoamOpt(d_model, factor, warmup_steps, torch.optim.Adam(self.model.parameters(), lr=lrate, betas=(beta1, beta2), eps=eps))
+
         self.criterion_msk = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
         if self.cuda:
             self.model.cuda()
@@ -85,9 +83,10 @@ class Trainer():
                 self.criterion_sim.cuda()
 
         self.load_checkpoint() #loads if exists
-        self.loss_mlm = ComputeLossMLM(self.model.generator, self.criterion_msk, self.optimizer)
         if self.steps['sim']['run']:
             self.loss_sim = ComputeLossSIM(self.criterion_sim, self.steps['sim']['pooling'], self.optimizer)
+        else:
+            self.loss_mlm = ComputeLossMLM(self.model.generator, self.criterion_msk, self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
 
         logging.info('read Train data')
@@ -98,35 +97,6 @@ class Trainer():
             self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,infinite=False)
         else: 
             self.data_valid = None
-
-
-    def load_checkpoint(self):
-        files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
-        if len(files):
-            file = files[-1] ### last is the newest
-            checkpoint = torch.load(file)
-            self.n_steps_so_far = checkpoint['n_steps_so_far']
-            self.optimizer.load_state_dict(checkpoint['optimizer'])
-            self.model.load_state_dict(checkpoint['model'])
-            logging.info('loaded checkpoint {}'.format(file))
-        else:
-            logging.info('no checkpoint available')
-
-            
-    def save_checkpoint(self):
-        file = '{}/checkpoint.{:07d}.pth'.format(self.dir,self.n_steps_so_far)
-        state = {
-            'n_steps_so_far': self.n_steps_so_far,
-            'optimizer': self.optimizer.state_dict(),
-            'model': self.model.state_dict()
-        }
-        torch.save(state, file)
-        logging.info('saved checkpoint {}'.format(file))
-        files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
-        while len(files) > self.average_last_n:
-            f = files.pop(0)
-            os.remove(f) ### first is the oldest
-            logging.debug('removed checkpoint {}'.format(f))
 
 
     def __call__(self):
@@ -152,14 +122,17 @@ class Trainer():
                     logging.info('batch with nothing to predict')
                     continue
                 h = self.model.forward(x,x_mask)
+                self.optimizer.zero_grad() 
                 loss = self.loss_mlm(h, y_mask, n_topredict)
+                loss.backward()
+                self.optimizer.step()
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t, mask_st = self.sim_batch_cuda(batch) 
-                print('x1',x1.size())
-                print(x1)
-                print('x1_mask',x1_mask.size())
-                print(x1_mask)
+                #print('x1',x1.size())
+                #print(x1)
+                #print('x1_mask',x1_mask.size())
+                #print(x1_mask)
                 #x1 contains the true words in batch_src
                 #x2 contains the true words in batch_tgt
                 #l1 length of sentences in batch
@@ -172,9 +145,12 @@ class Trainer():
                 #mask_st
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
-                print('h1',h1.size())
-                print(h1)
+                #print('h1',h1.size())
+                #print(h1)
+                self.optimizer.zero_grad() 
                 loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t, mask_st)
+                loss.backward()
+                self.optimizer.step()
                 n_topredict = 1
 
             self.n_steps_so_far += 1
@@ -211,34 +187,6 @@ class Trainer():
 
         self.save_checkpoint()
         logging.info('End train')
-
-
-    def average(self):
-        files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
-        if len(files) == 0:
-            logging.info('no checkpoint available')
-            return
-        #read models
-        models = []
-        for file in files:
-            m = self.model.clone()
-            checkpoint = torch.load(file)
-            m.load_state_dict(checkpoint['model'])
-            models.append(m)
-            logging.info('read {}'.format(file))
-        #create mout 
-        mout = self.model.clone()
-        for ps in zip(*[m.params() for m in [mout] + models]):
-            p[0].copy_(torch.sum(*ps[1:]) / len(ps[1:]))
-        fout = self.dir + '/checkpoint.averaged.pth'
-        state = {
-            'n_steps_so_far': mout.n_steps_so_far,
-            'optimizer': mout.optimizer.state_dict(),
-            'model': mout.model.state_dict()
-        }
-        #save mout into fout
-        torch.save(state, fout)
-        logging.info('averaged {} models into {}'.format(len(files), fout))
 
 
     def mlm_batch_cuda(self, batch):
@@ -322,6 +270,64 @@ class Trainer():
             mask_st = mask_st.cuda()
 
         return x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t, mask_st
+
+
+    def load_checkpoint(self):
+        files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
+        if len(files):
+            file = files[-1] ### last is the newest
+            checkpoint = torch.load(file)
+            self.n_steps_so_far = checkpoint['n_steps_so_far']
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+            self.model.load_state_dict(checkpoint['model'])
+            logging.info('loaded checkpoint {}'.format(file))
+        else:
+            logging.info('no checkpoint available')
+
+            
+    def save_checkpoint(self):
+        file = '{}/checkpoint.{:07d}.pth'.format(self.dir,self.n_steps_so_far)
+        state = {
+            'n_steps_so_far': self.n_steps_so_far,
+            'optimizer': self.optimizer.state_dict(),
+            'model': self.model.state_dict()
+        }
+        torch.save(state, file)
+        logging.info('saved checkpoint {}'.format(file))
+        files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
+        while len(files) > self.average_last_n:
+            f = files.pop(0)
+            os.remove(f) ### first is the oldest
+            logging.debug('removed checkpoint {}'.format(f))
+
+
+    def average(self):
+        files = sorted(glob.glob(self.dir + '/checkpoint.???????.pth')) 
+        if len(files) == 0:
+            logging.info('no checkpoint available')
+            return
+        #read models
+        models = []
+        for file in files:
+            m = self.model.clone()
+            checkpoint = torch.load(file)
+            m.load_state_dict(checkpoint['model'])
+            models.append(m)
+            logging.info('read {}'.format(file))
+        #create mout 
+        mout = self.model.clone()
+        for ps in zip(*[m.params() for m in [mout] + models]):
+            p[0].copy_(torch.sum(*ps[1:]) / len(ps[1:]))
+        fout = self.dir + '/checkpoint.averaged.pth'
+        state = {
+            'n_steps_so_far': mout.n_steps_so_far,
+            'optimizer': mout.optimizer.state_dict(),
+            'model': mout.model.state_dict()
+        }
+        #save mout into fout
+        torch.save(state, fout)
+        logging.info('averaged {} models into {}'.format(len(files), fout))
+
 
     def stats(self, n_words_so_far_step,sum_loss_so_far_step,steps_run):
         total_steps = 0
