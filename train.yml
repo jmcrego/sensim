@@ -6,13 +6,11 @@ train:
   - [ './data/ECB.trn.en.gz' ]
   - [ './data/EMEA.trn.en.gz' ]
   - [ './data/KDE4.trn.en.gz' ]
-  - [ './data/ECB.trn.fr.gz',  './data/ECB.trn.en.gz'  ]
-  - [ './data/EMEA.trn.fr.gz', './data/EMEA.trn.en.gz' ]
-  - [ './data/KDE4.trn.fr.gz', './data/KDE4.trn.en.gz' ]
   - [ './data/ECB.trn.fr.gz' ]
   - [ './data/EMEA.trn.fr.gz' ]
   - [ './data/KDE4.trn.fr.gz' ]
 max_length: 160
+swap_bitext: true
 batch_size: [32, 2]
 train_steps: 1000000
 steps: 

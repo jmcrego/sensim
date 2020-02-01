@@ -156,7 +156,15 @@ class batch():
                 self.idx_src[i] += [idx_pad]*(self.maxlsrc-len(self.idx_src[i]))
         self.idx_src.append(idx_src) ### [<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <pad>, ...]   (lsrc is the position of <eos> +1)
 
-    def add_pair_join(self, src, idx_src, tgt, idx_tgt): ### used for pre-training (MLM): uses <cls>, <bos> ... <eos> <sep> <bos> ... <eos>
+    def add_pair_join(self, src, idx_src, tgt, idx_tgt, train_swap): ### used for pre-training (MLM): uses <cls>, <bos> ... <eos> <sep> <bos> ... <eos>
+        if train_swap and random.random() < 0.5:
+            aux = list(tgt)
+            tgt = list(src)
+            src = list(aux)
+            idx_aux = list(idx_tgt)
+            idx_tgt = list(idx_src)
+            idx_src = list(idx_aux)
+
         self.src.append(src)
         self.tgt.append(tgt)
         self.idx_tgt.append([])
@@ -184,6 +192,14 @@ class batch():
 
 
     def add_pair(self, src, idx_src, tgt, idx_tgt, isParallel): ### used for fine-tunning (SIM): uses <cls>, <bos> ... <eos> in both sides
+        if train_swap and random.random() < 0.5:
+            aux = list(tgt)
+            tgt = list(src)
+            src = list(aux)
+            idx_aux = list(idx_tgt)
+            idx_tgt = list(idx_src)
+            idx_src = list(idx_aux)
+
         self.src.append(src)
         self.tgt.append(tgt)
 
@@ -222,19 +238,21 @@ class batch():
 
 class DataSet():
 
-    def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0, allow_shuffle=False, infinite=False):
+    def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0,swap_bitext=False, allow_shuffle=False, infinite=False):
         self.allow_shuffle = allow_shuffle
         self.infinite = infinite
+        
         self.max_length = max_length
         self.batch_size = batch_size
         self.steps = steps
         self.do_sim = self.steps['sim']['run']
         self.p_uneven = self.steps['sim']['p_uneven']
+        self.swap_bitext = swap_bitext
 
         ##################
         ### read files ###
         ##################
-        max_num_sents = 0 ### jmcrego
+        max_num_sents = 10000 ### jmcrego
         self.data = []
         for i in range(len(files)):
             if len(files[i])==1: ############# single file ##########################################
@@ -300,12 +318,12 @@ class DataSet():
                     index = indexs[i]
                 tgt = self.data[index][1]
                 idx_tgt = [vocab[t] for t in tgt]
-                currbatch.add_pair(src,idx_src,tgt,idx_tgt,isParallel)
+                currbatch.add_pair(src,idx_src,tgt,idx_tgt,isParallel,swap_bitext)
             else: ### pre-training (MLM)
                 if len(self.data[index]) > 1:
                     tgt = self.data[index][1]
                     idx_tgt = [vocab[t] for t in tgt]
-                    currbatch.add_pair_join(src,idx_src,tgt,idx_tgt)
+                    currbatch.add_pair_join(src,idx_src,tgt,idx_tgt,swap_bitext)
                 else:
                     currbatch.add_single(src,idx_src)
             if len(currbatch) == self.batch_size or i == len(indexs)-1: ### record new batch

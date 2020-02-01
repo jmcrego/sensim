@@ -69,32 +69,31 @@ class Trainer():
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         self.optimizer = NoamOpt(d_model, factor, warmup_steps, torch.optim.Adam(self.model.parameters(), lr=lrate, betas=(beta1, beta2), eps=eps))
 
-        self.criterion_msk = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
-        if self.cuda:
-            self.model.cuda()
-            self.criterion_msk.cuda()
-
         if self.steps['sim']['run']:
             if self.steps['sim']['pooling'] == 'align':
-                self.criterion_sim = AlignSIM()
+                self.criterion = AlignSIM()
             else:
-                self.criterion_sim = CosineSIM()
-            if self.cuda:
-                self.criterion_sim.cuda()
+                self.criterion = CosineSIM()
+        else:
+            self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
+
+        if self.cuda:
+            self.criterion.cuda()
+            self.model.cuda()
 
         self.load_checkpoint() #loads if exists
         if self.steps['sim']['run']:
-            self.loss_sim = ComputeLossSIM(self.criterion_sim, self.steps['sim']['pooling'], self.steps['sim']['R'], self.optimizer)
+            self.loss_sim = ComputeLossSIM(self.criterion, self.steps['sim']['pooling'], self.steps['sim']['R'], self.optimizer)
         else:
-            self.loss_mlm = ComputeLossMLM(self.model.generator, self.criterion_msk, self.optimizer)
+            self.loss_mlm = ComputeLossMLM(self.model.generator, self.criterion, self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
 
         logging.info('read Train data')
-        self.data_train = DataSet(self.steps,opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,infinite=True)
+        self.data_train = DataSet(self.steps,opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=True,infinite=True)
 
         if 'valid' in opts.train:
             logging.info('read Valid data')
-            self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],allow_shuffle=True,infinite=False)
+            self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=True,infinite=False)
         else: 
             self.data_valid = None
 
