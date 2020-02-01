@@ -84,7 +84,7 @@ class Trainer():
 
         self.load_checkpoint() #loads if exists
         if self.steps['sim']['run']:
-            self.loss_sim = ComputeLossSIM(self.criterion_sim, self.steps['sim']['pooling'], self.optimizer)
+            self.loss_sim = ComputeLossSIM(self.criterion_sim, self.steps['sim']['pooling'], self.steps['sim']['R'], self.optimizer)
         else:
             self.loss_mlm = ComputeLossMLM(self.model.generator, self.criterion_msk, self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
@@ -128,7 +128,7 @@ class Trainer():
                 self.optimizer.step()
             else: ### fine-tunning (SIM)
                 step = 'sim'
-                x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t, mask_st = self.sim_batch_cuda(batch) 
+                x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
                 #print('x1',x1.size())
                 #print(x1)
                 #print('x1_mask',x1_mask.size())
@@ -148,7 +148,7 @@ class Trainer():
                 #print('h1',h1.size())
                 #print(h1)
                 self.optimizer.zero_grad() 
-                loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t, mask_st)
+                loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
                 loss.backward()
                 self.optimizer.step()
                 n_topredict = 1
@@ -246,15 +246,8 @@ class Trainer():
 
         mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2)) 
         mask_t = torch.from_numpy(sequence_mask(batch_tgt_len,mask_n_initials=2)) 
-        mask_st = torch.from_numpy(st_mask(batch_src_len,batch_tgt_len,mask_n_initials=2)) 
 
         y = torch.as_tensor(y)
-
-        #print('src',batch.src)
-        #print('idx_src',batch.idx_src)
-        #print('tgt',batch.tgt)
-        #print('idx_tgt',batch.idx_tgt)
-        #print('isParallel',batch.isParallel)
 
         if self.cuda:
             x1 = x1.cuda()
@@ -263,13 +256,11 @@ class Trainer():
             x2 = x2.cuda()
             x2_mask = x2_mask.cuda()
             l2 = l2.cuda()
-            x1x2_mask = x1x2_mask.cuda()
             y = y.cuda()
             mask_s = mask_s.cuda()
             mask_t = mask_t.cuda()
-            mask_st = mask_st.cuda()
 
-        return x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t, mask_st
+        return x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t
 
 
     def load_checkpoint(self):

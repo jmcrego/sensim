@@ -91,13 +91,12 @@ class CosineSIM(nn.Module):
 class AlignSIM(nn.Module):
     def __init__(self):
         super(AlignSIM, self).__init__()
-        #self.criterion = nn.MSELoss(size_average=None, reduce=None, reduction='mean') 
         logging.debug('built criterion (align)')
         
     def forward(self, aggr, y, mask_t):
-        sign = torch.ones(aggr.size()) * y.unsqueeze(-1) 
+        sign = torch.ones(aggr.size()) * y.unsqueeze(-1) #[b,lt]
         error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
-        sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence
+        sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
         loss = torch.mean(sum_error) 
         return loss
 
@@ -112,34 +111,22 @@ class ComputeLossMLM:
         self.opt = opt
 
     def __call__(self, h, y, n_topredict): 
-#        if self.opt is not None:
-#            self.opt.optimizer.zero_grad() #resets parameters gradients (x.grad)
         x_hat = self.generator(h) # project x softmax 
-        #x_hat [batch_size, max_len, |vocab|]
-        #y     [batch_size, max_len]
         x_hat = x_hat.contiguous().view(-1, x_hat.size(-1))
         y = y.contiguous().view(-1)
-        #x_hat [batch_size*max_len, |vocab|]
-        #y     [batch_size*max_len]
-
-        #n_ok = ((y == torch.argmax(x_hat, dim=1)) * (y != self.criterion.padding_idx)).sum()
-        #logging.debug('batch {}/{} Acc={:.2f}'.format(n_ok,n_topredict,100.0*n_ok/n_topredict))
 
         loss = self.criterion(x_hat, y) / n_topredict #(normalised per token predicted)_
-#        loss.backward()
-#        if self.opt is not None:
-#            self.opt.step() #performs a parameter update based on the current gradient
-        return loss * n_topredict
+        return loss 
 
 
 class ComputeLossSIM:
-    def __init__(self, criterion, pooling, opt=None):
+    def __init__(self, criterion, pooling, R, opt=None):
         self.criterion = criterion
         self.pooling = pooling
         self.opt = opt
-        self.R = 1.0
+        self.R = R
 
-    def __call__(self, hs, ht, slen, tlen, y, mask_s, mask_t, mask_st): 
+    def __call__(self, hs, ht, slen, tlen, y, mask_s, mask_t): 
         #hs [bs, sl, es] embeddings of source words after encoder (<cls> <bos> s1 s2 ... sI <eos> <pad> ...)
         #ht [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
         #slen [bs] length of source sentences (I) in batch
@@ -148,25 +135,8 @@ class ComputeLossSIM:
         #mask_s [bs,ls]
         #mask_t [bs,tl]
         #mask_st [bs,sl,tl]
-        #print('mask_s',mask_s.size())
-        #print(mask_s)
-        #print('mask_t',mask_t.size())
-        #print(mask_t)
-        #print('mask_st',mask_st.size())
-        #print(mask_st)
-        #print('hs',hs.size())
-        #print(hs)
-        #print('ht',ht.size())
-        #print(ht)
-        #print('slen',slen.size())
-        #print('tlen',tlen.size())
-        #print('y',y.size())
         mask_s = mask_s.unsqueeze(-1).type(torch.float64)
         mask_t = mask_t.unsqueeze(-1).type(torch.float64)
-        mask_st = mask_st.type(torch.float64)
-
-#        if self.opt is not None:
-#            self.opt.optimizer.zero_grad() #resets parameters gradients (x.grad)
 
         if self.pooling == 'max':
             s, _ = torch.max(hs*mask_s + (1.0-mask_s)*-float('Inf'), dim=1)
@@ -177,70 +147,30 @@ class ComputeLossSIM:
             s = torch.sum(hs * mask_s, dim=1) / torch.sum(mask_s, dim=1)
             t = torch.sum(ht * mask_t, dim=1) / torch.sum(mask_t, dim=1)
             loss = self.criterion(s, t, y)
-            print('loss (mean over batch examples)',loss)
 
         elif self.pooling == 'cls':
             s = hs[:, 0, :] # take embedding of first token <cls>
             t = ht[:, 0, :] # take embedding of first token <cls>
             loss = self.criterion(s, t, y)
-            print('loss (mean over batch examples)',loss)
 
         elif self.pooling == 'align':
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]
             aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
             loss = self.criterion(aggr_t,y,mask_t.squeeze())
-            print('loss (mean over batch examples)',loss)
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
             sys.exit()
 
-#        loss.backward() #computes gradients dloss/dx for parameters x (only x's with requires_grad=True) and accumulates them in x.grad (x.grad += dloss/dx)
-#        if self.opt is not None:
-#            self.opt.step() #For each parameter x, it performs the parameter update. (x += -lr * x.grad)
+        print('loss (mean over batch examples)',loss)
         return loss
 
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
-        #print('S_st',S_st.size()) #[bs, ls, lt]
-        #print('mask_s',mask_s.size())
-        #print('mask_st',mask_st.size()) #[bs, ls, lt] contains zero those cells to be padded
-        #print(mask_st)
         exp_rS = torch.exp(S_st * self.R)
-        #print('exp_rS',exp_rS.size())
-        #print(exp_rS)
         sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
-        #print('sum_exp_rS (sum over src words)',sum_exp_rS.size()) #[bs,lt]
-        #print(sum_exp_rS)
         log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
-        #print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R.size()) #[bs,lt]
-        #print(log_sum_exp_rS_div_R)
         return log_sum_exp_rS_div_R
 
-'''
-def sequence_mask(lengths, mask_n_initials=0):
-    maxlen = lengths.max()
-    msk = torch.ones([len(lengths), maxlen]).cumsum(dim=1, dtype=torch.int32).t()
-    #for a 3x3 matrix: msk = [[1,2,3],[1,2,3],[1,2,3]]
-    if mask_n_initials > 0:
-        return ((msk <= lengths) & (msk > mask_n_initials)).t().type(torch.bool)
-    return (msk <= lengths).t().type(torch.bool)
-
-
-def st_mask(slen,tlen,mask_n_initials=0):
-    assert len(slen)==len(tlen)
-    bs = len(slen)
-    ls = slen.max()
-    lt = tlen.max()
-    #print('matrix is [bs={} x [{},{}]]'.format(bs,ls,lt))
-    #print('slen={}'.format(slen))
-    #print('tlen={}'.format(tlen))
-    msk = torch.zeros([bs,ls,lt], dtype=torch.bool)
-    for b in range(bs):
-        for s in range(mask_n_initials,slen[b]):
-            msk[b,s,mask_n_initials:tlen[b]] = True
-    #print(msk)
-    return msk
-'''
 
 
 
