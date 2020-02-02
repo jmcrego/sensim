@@ -92,9 +92,8 @@ class Trainer():
         self.data_train = DataSet(self.steps,opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=True,infinite=True)
 
         if 'valid' in opts.train:
-            #logging.info('read Valid data')
-            #self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=False,infinite=False)
-            self.data_valid = None
+            logging.info('read Valid data')
+            self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][1],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=False,infinite=False)
         else: 
             self.data_valid = None
 
