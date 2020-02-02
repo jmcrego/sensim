@@ -94,7 +94,7 @@ class Trainer():
         if 'valid' in opts.train:
             #logging.info('read Valid data')
             #self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=False,infinite=False)
-            self.data_Valid = None
+            self.data_valid = None
         else: 
             self.data_valid = None
 
