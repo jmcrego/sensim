@@ -75,7 +75,8 @@ class Trainer():
             else:
                 self.criterion = CosineSIM()
         else:
-            self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
+#            self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
+            self.criterion = CrossEntropy(padding_idx=self.vocab.idx_pad)
 
         if self.cuda:
             self.criterion.cuda()
