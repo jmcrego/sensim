@@ -238,9 +238,9 @@ class batch():
 
 class DataSet():
 
-    def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0,swap_bitext=False, allow_shuffle=False, infinite=False):
+    def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0,swap_bitext=False, allow_shuffle=False, valid_test=False):
         self.allow_shuffle = allow_shuffle
-        self.infinite = infinite
+        self.valid_test = valid_test
 
         self.max_length = max_length
         self.batch_size = batch_size
@@ -248,7 +248,7 @@ class DataSet():
         self.do_sim = self.steps['sim']['run']
         self.p_uneven = self.steps['sim']['p_uneven']
         self.swap_bitext = swap_bitext
-        logging.info('reading dataset [swap:{},batch_size:{},max_length:{},do_sim:{},allow_shuffle:{},infinite:{}]'.format(swap_bitext,batch_size,max_length,self.do_sim,allow_shuffle,infinite))
+        logging.info('reading dataset [swap:{},batch_size:{},max_length:{},do_sim:{},allow_shuffle:{},valid_test:{}]'.format(swap_bitext,batch_size,max_length,self.do_sim,allow_shuffle,valid_test))
         ##################
         ### read files ###
         ##################
@@ -344,7 +344,7 @@ class DataSet():
             for index in indexs:
                 yield self.batches[index]
 
-            if not self.infinite:
+            if not self.valid_test:
                 break
 
 
