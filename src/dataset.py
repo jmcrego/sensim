@@ -344,7 +344,7 @@ class DataSet():
             for index in indexs:
                 yield self.batches[index]
 
-            if not self.valid_test:
+            if self.valid_test:
                 break
 
 

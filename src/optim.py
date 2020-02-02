@@ -81,7 +81,7 @@ class LabelSmoothing(nn.Module):
 class CrossEntropy(nn.Module):
     def __init__(self,padding_idx):
         super(CrossEntropy, self).__init__()
-        self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=padding_idx, reduce=None, reduction='mean')
+        self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=padding_idx, reduce=None, reduction='none')
         logging.debug('built criterion (CrossEntropy)')
         
     def forward(self, x, target): 
@@ -124,7 +124,7 @@ class ComputeLossMLM:
         x_hat = x_hat.contiguous().view(-1, x_hat.size(-1))
         y = y.contiguous().view(-1)
 
-        loss = self.criterion(x_hat, y) #/ n_topredict #(normalised per token predicted)_
+        loss = self.criterion(x_hat, y) / n_topredict #(normalised per token predicted)_
         return loss 
 
 
