@@ -100,6 +100,7 @@ class Trainer():
 
     def validation(self):
         logging.info('Start validation n_steps_so_far={}'.format(self.n_steps_so_far))
+        return
         n_words_so_far = 0
         sum_loss_so_far = 0.0
         n_words_so_far_step = defaultdict(int)
