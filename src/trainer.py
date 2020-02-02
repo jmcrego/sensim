@@ -123,7 +123,7 @@ class Trainer():
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
                 loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
-                n_topredict = 1
+                n_topredict = h1.size(0)
 
             n_words_so_far += n_topredict
             sum_loss_so_far += loss 
@@ -164,10 +164,6 @@ class Trainer():
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
-                #print('x1',x1.size())
-                #print(x1)
-                #print('x1_mask',x1_mask.size())
-                #print(x1_mask)
                 #x1 contains the true words in batch_src
                 #x2 contains the true words in batch_tgt
                 #l1 length of sentences in batch
@@ -175,9 +171,6 @@ class Trainer():
                 #x1_mask contains true for padded words, false for not padded words in x1
                 #x2_mask contains true for padded words, false for not padded words in x2
                 #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
-                #mask_s
-                #mask_t
-                #mask_st
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
                 #print('h1',h1.size())
@@ -186,7 +179,7 @@ class Trainer():
                 loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
                 loss.backward()
                 self.optimizer.step()
-                n_topredict = 1
+                n_topredict = h1.size(0)
 
             self.n_steps_so_far += 1
             n_words_so_far += n_topredict
@@ -205,7 +198,7 @@ class Trainer():
                 sum_loss_so_far_step = defaultdict(float)
                 start = time.time()
             ###
-            ### save
+            ### saved
             ###
             if self.checkpoint_every_steps > 0 and self.n_steps_so_far % self.checkpoint_every_steps == 0:
                 self.save_checkpoint()
