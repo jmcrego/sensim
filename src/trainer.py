@@ -93,9 +93,44 @@ class Trainer():
 
         if 'valid' in opts.train:
             logging.info('read Valid data')
-            self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=True,infinite=False)
+            self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=False,infinite=False)
         else: 
             self.data_valid = None
+
+
+    def validation(self):
+        logging.info('Start validation n_steps_so_far={}'.format(self.n_steps_so_far))
+        n_words_so_far = 0
+        sum_loss_so_far = 0.0
+        n_words_so_far_step = defaultdict(int)
+        sum_loss_so_far_step = defaultdict(float)
+        steps_run = defaultdict(int)
+        start = time.time()
+        for batch in self.data_valid:
+            self.model.eval()
+            if not self.steps['sim']['run']: ### pre-training (MLM)
+                step = 'mlm'
+                x, x_mask, y_mask, n_topredict = self.mlm_batch_cuda(batch)
+                if n_topredict == 0: #nothing to predict
+                    logging.info('batch with nothing to predict')
+                    continue
+                h = self.model.forward(x,x_mask)
+                loss = self.loss_mlm(h, y_mask, n_topredict)
+            else: ### fine-tunning (SIM)
+                step = 'sim'
+                x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
+                h1 = self.model.forward(x1,x1_mask)
+                h2 = self.model.forward(x2,x2_mask)
+                loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
+                n_topredict = 1
+
+            n_words_so_far += n_topredict
+            sum_loss_so_far += loss 
+            n_words_so_far_step[step] += n_topredict
+            sum_loss_so_far_step[step] += loss 
+            steps_run[step] += 1
+        logging.info("Valid Loss: {:.4f} Predictions: {} Tokens/sec: {:.1f} {}".format(sum_loss_so_far / n_words_so_far, n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
+        logging.info('End validation')
 
 
     def __call__(self):
