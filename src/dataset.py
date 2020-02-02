@@ -252,7 +252,7 @@ class DataSet():
         ##################
         ### read files ###
         ##################
-        max_num_sents = 10000 ### jmcrego
+        max_num_sents = 0 ### jmcrego
         self.data = []
         for i in range(len(files)):
             if len(files[i])==1: ############# single file ##########################################
@@ -267,7 +267,7 @@ class DataSet():
                 for ls in fs:
                     n += 1
                     src = [s for s in token.tokenize(ls)]
-                    if self.max_length > 0 and len(src) > self.max_length: 
+                    if self.valid_test and self.max_length > 0 and len(src) > self.max_length: 
                         continue
                     m += 1
                     self.data.append([src,[]]) ### [s1, s2, ..., sn], [t1, t2, ..., tn]
@@ -286,7 +286,7 @@ class DataSet():
                     n += 1
                     src = [s for s in token.tokenize(ls)]
                     tgt = [t for t in token.tokenize(lt)]
-                    if self.max_length > 0 and len(src)+len(tgt) > self.max_length: 
+                    if self.valid_test and self.max_length > 0 and len(src)+len(tgt) > self.max_length: 
                         continue
                     m += 1
                     self.data.append([src,tgt]) ### [s1, s2, ..., sn], [t1, t2, ..., tn]
