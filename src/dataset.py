@@ -252,7 +252,7 @@ class DataSet():
         ##################
         ### read files ###
         ##################
-        max_num_sents = 10000 ### jmcrego
+        max_num_sents = 0 #10000 ### jmcrego
         self.data = []
         for i in range(len(files)):
             if len(files[i])==1: ############# single file ##########################################
