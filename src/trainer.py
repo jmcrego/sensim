@@ -200,7 +200,7 @@ class Trainer():
                 step = 'mlm'
                 logging.info('load1 batch')
                 x, x_mask, y_mask = self.mlm_batch_cuda(batch)
-                logging.info('size batch {}'.format(y_matsk.size()))
+                logging.info('size batch {}'.format(y_mask.size()))
                 n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
                 if n_predictions == 0: #nothing to predict
                     logging.info('batch with nothing to predict')
