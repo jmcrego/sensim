@@ -78,6 +78,9 @@ class Trainer():
         beta2 = opts.cfg['beta2']
         eps = opts.cfg['eps']
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
+        if self.cuda:
+            self.model.cuda()
+
         self.optimizer = NoamOpt(d_model, factor, warmup_steps, torch.optim.Adam(self.model.parameters(), lr=lrate, betas=(beta1, beta2), eps=eps))
 
         if self.steps['sim']['run']:
@@ -93,7 +96,6 @@ class Trainer():
 
         if self.cuda:
             self.criterion.cuda()
-            self.model.cuda()
 
         self.load_checkpoint() #loads if exists
         if self.steps['sim']['run']:
