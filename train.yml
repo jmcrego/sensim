@@ -13,9 +13,9 @@ valid:
   - [ './data/ECB.val.en.gz',  './data/ECB.val.fr.gz'  ]
   - [ './data/EMEA.val.en.gz', './data/EMEA.val.fr.gz' ]
   - [ './data/KDE4.val.en.gz', './data/KDE4.val.fr.gz' ]
-max_length: 100 #160
+max_length: 160
 swap_bitext: true
-batch_size: [8, 8]
+batch_size: [32, 32]
 train_steps: 1000000
 steps: 
   mlm: { p_mask: 0.15, r_same: 0.1, r_rand: 0.1 }
