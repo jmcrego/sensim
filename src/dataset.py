@@ -190,8 +190,7 @@ class batch():
                 self.idx_src[i] += [idx_pad]*(self.maxlsrc-len(self.idx_src[i]))
         self.idx_src.append(idx_src) ### [<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <pad>, ...]   (lsrc is the position of last <eos> +1)
 
-
-    def add_pair(self, src, idx_src, tgt, idx_tgt, isParallel): ### used for fine-tunning (SIM): uses <cls>, <bos> ... <eos> in both sides
+    def add_pair(self, src, idx_src, tgt, idx_tgt, isParallel, train_swap): ### used for fine-tunning (SIM): uses <cls>, <bos> ... <eos> in both sides
         if train_swap and random.random() < 0.5:
             aux = list(tgt)
             tgt = list(src)
