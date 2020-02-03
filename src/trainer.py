@@ -221,7 +221,7 @@ class Trainer():
         batch = np.array(batch.idx_src)
         x = torch.from_numpy(batch) #[batch_size, max_len] contains the original words. some will be masked
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]. Contains true for words to be predicted (masked), false otherwise
-        y_mask = torch.ones_like(x, dtype=torch.int64) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
+        y_mask = torch.ones_like(x, dtype=torch.int64) * self.vocab.idx_pad #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
 
         p_mask = self.steps['mlm']['p_mask']
         r_same = self.steps['mlm']['r_same']
@@ -234,7 +234,7 @@ class Trainer():
 
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
-                y_mask[i,j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
+                #y_mask[i,j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
                 if not self.vocab.is_reserved(x[i,j]):
                     r = random.random()     # float in range [0.0, 1,0)
                     if r < p_mask:          ### is masked
