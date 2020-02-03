@@ -116,6 +116,7 @@ class Trainer():
 
     def __call__(self):
         logging.info('Start train n_steps_so_far={}'.format(self.n_steps_so_far))
+
         ts = stats()
         for batch in self.data_train:
             self.model.train()
@@ -217,9 +218,9 @@ class Trainer():
 
     def mlm_batch_cuda(self, batch):
         batch = np.array(batch.idx_src)
+        y_mask = torch.from_numpy(batch) #[batch_size, max_len]. Contains the original value of masked words in x. <pad> for the rest
         x = torch.from_numpy(batch) #[batch_size, max_len] contains the original words. some will be masked
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]. Contains true for words to be predicted (masked), false otherwise
-        y_mask = torch.from_numpy(batch)  #[batch_size, max_len]. Contains the original value of masked words in x. <pad> for the rest
 
         p_mask = self.steps['mlm']['p_mask']
         r_same = self.steps['mlm']['r_same']
