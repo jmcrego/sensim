@@ -221,8 +221,8 @@ class Trainer():
         batch = np.array(batch.idx_src)
         x = torch.from_numpy(batch) #[batch_size, max_len] contains the original words. some will be masked
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]. Contains true for words to be predicted (masked), false otherwise
-        #y_mask = torch.ones_like(x, dtype=torch.int64) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
-        y_mask = torch.from_numpy(batch)
+        y_mask = torch.ones_like(x, dtype=torch.int64) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
+        #y_mask = torch.from_numpy(batch)
         print('x',x)
         print('x_mask',x_mask)
         print('y_mask',y_mask)
