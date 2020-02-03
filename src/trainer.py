@@ -177,7 +177,8 @@ class Trainer():
             ### validation
             ###
             if self.data_valid is not None and self.validation_every_steps > 0 and self.n_steps_so_far % self.validation_every_steps == 0:
-                self.validation()
+                with torch.no_grad():
+                    self.validation()
             ###
             ### stop training
             ###
@@ -192,7 +193,6 @@ class Trainer():
         logging.info('Start validation')
         ds = stats()
         self.model.eval() ### avoids dropout
-        torch.no_grad()
         for batch in self.data_valid:
             if not self.steps['sim']['run']: ### pre-training (MLM)
                 step = 'mlm'
