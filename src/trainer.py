@@ -190,7 +190,7 @@ class Trainer():
         torch.cuda.empty_cache()
         logging.info('Start validation')
         ds = stats()
-        self.model.eval()
+        #self.model.eval()
         for batch in self.data_valid:
             if not self.steps['sim']['run']: ### pre-training (MLM)
                 step = 'mlm'
