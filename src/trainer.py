@@ -223,6 +223,9 @@ class Trainer():
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]. Contains true for words to be predicted (masked), false otherwise
         #y_mask = torch.ones_like(x, dtype=torch.int64) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
         y_mask = torch.from_numpy(batch)
+        print('x',x)
+        print('x_mask',x_mask)
+        print('y_mask',y_mask)
 
         p_mask = self.steps['mlm']['p_mask']
         r_same = self.steps['mlm']['r_same']
@@ -253,6 +256,8 @@ class Trainer():
             x_mask = x_mask.cuda()
             y_mask = y_mask.cuda()
 
+        print('y_mask',y_mask)
+        sys.exit()
         return x, x_mask, y_mask
 
 
