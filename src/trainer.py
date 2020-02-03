@@ -238,8 +238,9 @@ class Trainer():
 
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
+                print('before',x[i,j])
                 y_mask[i,j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
-                print(x[i,j])
+                print('after',x[i,j])
                 if not self.vocab.is_reserved(x[i,j]):
                     r = random.random()     # float in range [0.0, 1,0)
                     print(r,p_mask)
