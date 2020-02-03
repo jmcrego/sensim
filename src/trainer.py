@@ -89,10 +89,8 @@ class Trainer():
             else:
                 self.criterion = CosineSIM()
         else:
-            if self.steps['mlm']['criterion'] == 'xent':
-                self.criterion = CrossEntropy(padding_idx=self.vocab.idx_pad)
-            else:
-                self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
+            #self.criterion = CrossEntropy(padding_idx=self.vocab.idx_pad)
+            self.criterion = LabelSmoothing(size=V, padding_idx=self.vocab.idx_pad, smoothing=label_smoothing)
 
         if self.cuda:
             self.criterion.cuda()

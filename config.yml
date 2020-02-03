@@ -1,8 +1,8 @@
 token: { bpe_model_path: ./data/joint_enfr.30k.bpe, mode: conservative, joiner_annotate: true }
 vocab: ./data/en.vocab
-num_layers: 6
+num_layers: 4
 hidden_size: 512
-feedforward_size: 2048
+feedforward_size: 1024
 num_heads: 8
 emb_size: 512
 dropout: 0.1
