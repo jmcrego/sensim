@@ -114,16 +114,17 @@ class Trainer():
             ###
             if not self.steps['sim']['run']: ### pre-training (MLM)
                 step = 'mlm'
-                x, x_mask, y_mask, n_topredict = self.mlm_batch_cuda(batch)
-                #x contains the true words in batch after some masked (<msk>, random, same)
+                x, x_mask, y_mask = self.mlm_batch_cuda(batch)
+                n_topredict = torch.sum((y_mask != self.vocab.idx_pad)).data
+                #x contains the true words in batch after masking some of them (<msk>, random, same)
                 #x_mask contains true for words to be predicted (masked), false otherwise
                 #y_mask contains the original words of those cells to be predicted, <pad> otherwise
                 if n_topredict == 0: #nothing to predict
                     logging.info('batch with nothing to predict')
                     continue
                 h = self.model.forward(x,x_mask)
-                loss = self.loss_mlm(h, y_mask, n_topredict)
-                #print(loss)
+                batch_loss = self.loss_mlm(h, y_mask)
+                loss = batch_loss / n_topredict
                 self.optimizer.zero_grad() 
                 loss.backward()
                 self.optimizer.step()
@@ -139,27 +140,28 @@ class Trainer():
                 #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
                 #mask_s is the source sequence_length mask true/false depending on padded source words
                 #mask_t is the target sequence_length mask true/false depending on padded target words
+                n_topredict = x1.size(0)
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
                 #print('h1',h1.size())
                 #print(h1)
-                loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
+                batch_loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
+                loss = batch_loss / n_topredict
                 self.optimizer.zero_grad() 
                 loss.backward()
                 self.optimizer.step()
-                n_topredict = h1.size(0)
 
             self.n_steps_so_far += 1
             n_words_so_far += n_topredict
-            sum_loss_so_far += loss 
+            sum_loss_so_far += batch_loss 
             n_words_so_far_step[step] += n_topredict
-            sum_loss_so_far_step[step] += loss 
+            sum_loss_so_far_step[step] += batch_loss 
             steps_run[step] += 1
             ###
             ### report
             ###
             if self.report_every_steps > 0 and self.n_steps_so_far % self.report_every_steps == 0:
-                logging.info("Train step: {} Loss: {:.4f} Tokens/sec: {:.1f} {}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
+                logging.info("Train step: {} Loss: {:.4f} Predictions/sec: {:.1f} {}".format(self.n_steps_so_far, sum_loss_so_far / n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
                 n_words_so_far = 0
                 sum_loss_so_far = 0.0
                 n_words_so_far_step = defaultdict(int)
@@ -198,26 +200,27 @@ class Trainer():
         for batch in self.data_valid:
             if not self.steps['sim']['run']: ### pre-training (MLM)
                 step = 'mlm'
-                x, x_mask, y_mask, n_topredict = self.mlm_batch_cuda(batch)
+                x, x_mask, y_mask = self.mlm_batch_cuda(batch)
+                n_topredict = torch.sum((y_mask != self.vocab.idx_pad)).data
                 if n_topredict == 0: #nothing to predict
                     logging.info('batch with nothing to predict')
                     continue
                 h = self.model.forward(x,x_mask)
-                loss = self.loss_mlm(h, y_mask, n_topredict)
+                batch_loss = self.loss_mlm(h, y_mask, n_topredict)
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
+                n_topredict = x1.size(0)
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
-                loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
-                n_topredict = h1.size(0)
+                batch_loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
 
             n_words_so_far += n_topredict
-            sum_loss_so_far += loss 
+            sum_loss_so_far += batch_loss 
             n_words_so_far_step[step] += n_topredict
-            sum_loss_so_far_step[step] += loss 
+            sum_loss_so_far_step[step] += batch_loss 
             steps_run[step] += 1
-        logging.info("Valid Loss: {:.4f} Predictions: {} Tokens/sec: {:.1f} {}".format(sum_loss_so_far / n_words_so_far, n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
+        logging.info("Valid Loss: {:.4f} Predictions: {} Predictions/sec: {:.1f} {}".format(sum_loss_so_far / n_words_so_far, n_words_so_far, n_words_so_far / (time.time() - start), self.stats(n_words_so_far_step,sum_loss_so_far_step,steps_run))) 
         logging.info('End validation')
 
 
@@ -236,14 +239,12 @@ class Trainer():
             logging.error('mask={} l<= zero'.format(mask))
             sys.exit()
 
-        n_topredict = 0
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
                 y_mask[i][j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
                 if not self.vocab.is_reserved(x[i][j]):
                     r = random.random()     # float in range [0.0, 1,0)
                     if r < p_mask:          ### is masked
-                        n_topredict += 1
                         y_mask[i][j] = x[i][j]   # use the original (true) word rather than <pad> 
                         q = random.random() # float in range [0.0, 1,0)
                         if q < r_same:        # same
@@ -258,7 +259,7 @@ class Trainer():
             x_mask = x_mask.cuda()
             y_mask = y_mask.cuda()
 
-        return x, x_mask, y_mask, n_topredict
+        return x, x_mask, y_mask
 
 
     def sim_batch_cuda(self, batch):

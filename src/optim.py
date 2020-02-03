@@ -63,7 +63,7 @@ class LabelSmoothing(nn.Module):
         self.smoothing = smoothing
         self.size = size
         self.true_dist = None
-        logging.debug('built criterion (label smoothing)')
+        logging.info('built criterion (label smoothing)')
         
     def forward(self, x, target): 
         #x is [batch_size*max_len, vocab] 
@@ -77,8 +77,7 @@ class LabelSmoothing(nn.Module):
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         self.true_dist = true_dist
-        #return self.criterion(x, Variable(true_dist, requires_grad=False))
-        return self.criterion(x, true_dist)
+        return self.criterion(x, true_dist) #total loss of this batch (not normalized)
 
 
 class CrossEntropy(nn.Module):
@@ -86,32 +85,31 @@ class CrossEntropy(nn.Module):
         super(CrossEntropy, self).__init__()
         self.padding_idx = padding_idx
         self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=padding_idx, reduction='sum')
-        logging.debug('built criterion (CrossEntropy)')
+        logging.info('built criterion (CrossEntropy)')
         
-    def forward(self, x, target): #not sure it works jmcc
-        return self.criterion(x, target)
+    def forward(self, x, target): 
+        return self.criterion(x, target) #total loss of this batch (not normalized)
 
 class CosineSIM(nn.Module):
     def __init__(self, margin=0.0):
         super(CosineSIM, self).__init__()
-        self.criterion = nn.CosineEmbeddingLoss(margin=margin, size_average=None, reduce=None, reduction='mean')
-        logging.debug('built criterion (cosine)')
+        self.criterion = nn.CosineEmbeddingLoss(margin=margin, size_average=None, reduce=None, reduction='sum')
+        logging.info('built criterion (cosine)')
         
     def forward(self, s1, s2, target):
-        return self.criterion(s1, s2, target)
+        return self.criterion(s1, s2, target) #total loss of this batch (not normalized)
 
 
 class AlignSIM(nn.Module):
     def __init__(self):
         super(AlignSIM, self).__init__()
-        logging.debug('built criterion (align)')
+        logging.info('built criterion (align)')
         
     def forward(self, aggr, y, mask_t):
         sign = torch.ones(aggr.size()) * y.unsqueeze(-1) #[b,lt]
         error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
-        loss = torch.mean(sum_error) 
-        return loss
+        return torch.sum(sum_error) #total loss of this batch (not normalized)
 
 ##################################################################
 ### Compute losses ###############################################
@@ -123,12 +121,12 @@ class ComputeLossMLM:
         self.criterion = criterion
         self.opt = opt
 
-    def __call__(self, h, y, n_topredict): 
+    def __call__(self, h, y): 
         x_hat = self.generator(h) # project x softmax #[bs,sl,V]
         x_hat = x_hat.contiguous().view(-1, x_hat.size(-1)) #[bs*sl,V]
         y = y.contiguous().view(-1) #[bs*sl]
-        loss = self.criterion(x_hat, y) / n_topredict #(normalised per token predicted)        
-        return loss 
+        loss = self.criterion(x_hat, y) 
+        return loss #not normalized
 
 
 class ComputeLossSIM:
@@ -174,8 +172,7 @@ class ComputeLossSIM:
             logging.error('bad pooling method {}'.format(self.pooling))
             sys.exit()
 
-        #print('loss (mean over batch examples)',loss)
-        return loss
+        return loss #not normalized
 
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
         exp_rS = torch.exp(S_st * self.R)
