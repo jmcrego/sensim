@@ -206,8 +206,6 @@ class Trainer():
                 print('memory allocated3 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
                 batch_loss = self.computeloss(h, y_mask)
                 print('memory allocated4 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
-                del x, x_mask, y_mask
-                print('memory allocated5 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
@@ -215,8 +213,8 @@ class Trainer():
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
                 batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
-            print('memory allocated = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
             torch.cuda.empty_cache()
+            print('memory allocated = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
             ds.add_batch(batch_loss,n_predictions)
         ds.report(self.n_steps_so_far,step,'Valid')
         logging.info('End validation')
