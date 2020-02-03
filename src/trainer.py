@@ -195,6 +195,7 @@ class Trainer():
         for batch in self.data_valid:
             if not self.steps['sim']['run']: ### pre-training (MLM)
                 step = 'mlm'
+                print('new batch example')
                 x, x_mask, y_mask = self.mlm_batch_cuda(batch)
                 n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
                 if n_predictions == 0: #nothing to predict
@@ -202,7 +203,8 @@ class Trainer():
                     continue
                 h = self.model.forward(x,x_mask)
                 batch_loss = self.computeloss(h, y_mask)
-#                del x, x_mask, y_mask
+                del x, x_mask, y_mask
+                torch.cuda.empty_cache()
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
@@ -222,10 +224,7 @@ class Trainer():
         x = torch.from_numpy(batch) #[batch_size, max_len] contains the original words. some will be masked
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]. Contains true for words to be predicted (masked), false otherwise
         y_mask = torch.ones_like(x, dtype=torch.int64) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
-        #y_mask = torch.from_numpy(batch)
-        print('x',x)
-        print('x_mask',x_mask)
-        print('y_mask',y_mask)
+        #y_mask = torch.from_numpy(batch) ## does not copy!!
 
         p_mask = self.steps['mlm']['p_mask']
         r_same = self.steps['mlm']['r_same']
@@ -238,17 +237,14 @@ class Trainer():
 
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
-                print('before',x[i,j])
                 y_mask[i,j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
-                print('after',x[i,j])
                 if not self.vocab.is_reserved(x[i,j]):
                     r = random.random()     # float in range [0.0, 1,0)
                     print(r,p_mask)
                     if r < p_mask:          ### is masked
-                        print('kkkkk {}',x[i,j])
-                        y_mask[i,j] = x[i,j]   # use the original (true) word rather than <pad> 
+                        y_mask[i,j] = x[i,j]# use the original (true) word rather than <pad> 
                         q = random.random() # float in range [0.0, 1,0)
-                        if q < r_same:        # same
+                        if q < r_same:      # same
                             pass
                         elif q < r_same+r_rand: # rand among all vocab words
                             x[i,j] = random.randint(7,len(self.vocab)-1) # int in range [7, |vocab|)
@@ -260,8 +256,6 @@ class Trainer():
             x_mask = x_mask.cuda()
             y_mask = y_mask.cuda()
 
-        print('y_mask',y_mask)
-        sys.exit()
         return x, x_mask, y_mask
 
 
