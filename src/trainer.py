@@ -113,7 +113,7 @@ class Trainer():
             ### run step
             ###
             if not self.steps['sim']['run']: ### pre-training (MLM)
-                step = 'mlm'+self.loss_mlm.criterion.name()
+                step = 'mlm_'+self.loss_mlm.criterion.name()
                 x, x_mask, y_mask = self.mlm_batch_cuda(batch)
                 n_topredict = torch.sum((y_mask != self.vocab.idx_pad)).data
                 #x contains the true words in batch after masking some of them (<msk>, random, same)
@@ -129,7 +129,7 @@ class Trainer():
                 loss.backward()
                 self.optimizer.step()
             else: ### fine-tunning (SIM)
-                step = 'sim'+self.loss_sim.criterion.name()
+                step = 'sim_'+self.loss_sim.criterion.name()
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
                 #x1 contains the true words in batch_src
                 #x2 contains the true words in batch_tgt
@@ -199,7 +199,7 @@ class Trainer():
         self.model.eval()
         for batch in self.data_valid:
             if not self.steps['sim']['run']: ### pre-training (MLM)
-                step = 'mlm'+self.loss_mlm.criterion.name()
+                step = 'mlm_'+self.loss_mlm.criterion.name()
                 x, x_mask, y_mask = self.mlm_batch_cuda(batch)
                 n_topredict = torch.sum((y_mask != self.vocab.idx_pad)).data
                 if n_topredict == 0: #nothing to predict
@@ -208,7 +208,7 @@ class Trainer():
                 h = self.model.forward(x,x_mask)
                 batch_loss = self.loss_mlm(h, y_mask, n_topredict)
             else: ### fine-tunning (SIM)
-                step = 'sim'+self.loss_sim.criterion.name()
+                step = 'sim_'+self.loss_sim.criterion.name()
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
                 n_topredict = x1.size(0)
                 h1 = self.model.forward(x1,x1_mask)
