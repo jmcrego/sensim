@@ -240,7 +240,6 @@ class Trainer():
                 y_mask[i,j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
                 if not self.vocab.is_reserved(x[i,j]):
                     r = random.random()     # float in range [0.0, 1,0)
-                    print(r,p_mask)
                     if r < p_mask:          ### is masked
                         y_mask[i,j] = x[i,j]# use the original (true) word rather than <pad> 
                         q = random.random() # float in range [0.0, 1,0)
