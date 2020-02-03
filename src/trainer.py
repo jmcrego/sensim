@@ -116,7 +116,6 @@ class Trainer():
 
     def __call__(self):
         logging.info('Start train n_steps_so_far={}'.format(self.n_steps_so_far))
-
         ts = stats()
         for batch in self.data_train:
             self.model.train()
