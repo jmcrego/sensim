@@ -130,7 +130,7 @@ class Trainer():
                 #x_mask contains true for words to be predicted (masked), false otherwise
                 #y_mask contains the original words of those cells to be predicted, <pad> otherwise
                 n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
-                if n_predictions == 0: #nothing to predict
+                if n_predictions == 0: 
                     logging.info('batch with nothing to predict')
                     continue
                 h = self.model.forward(x,x_mask)
@@ -218,9 +218,9 @@ class Trainer():
 
     def mlm_batch_cuda(self, batch):
         batch = np.array(batch.idx_src)
-        y_mask = torch.from_numpy(batch) #[batch_size, max_len]. Contains the original value of masked words in x. <pad> for the rest
         x = torch.from_numpy(batch) #[batch_size, max_len] contains the original words. some will be masked
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]. Contains true for words to be predicted (masked), false otherwise
+        y_mask = torch.as_tensor((batch != 0), dtype=torch.int64) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
 
         p_mask = self.steps['mlm']['p_mask']
         r_same = self.steps['mlm']['r_same']
