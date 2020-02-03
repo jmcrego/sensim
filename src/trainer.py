@@ -47,7 +47,7 @@ class stats():
 
     def report(self,n_steps,step,trn_val_tst):
         torch.cuda.empty_cache()
-        Gb_allocated = torch.cuda.memory_allocated(device=torch.cuda.current_device()) / 1073741824
+        Gb_allocated = torch.cuda.memory_allocated(device=torch.cuda.current_device()).data / 1073741824
 
         logging.info("{} step: {} ({}) Loss: {:.4f} Predictions/sec: {:.1f} [GPU:{}Gb]".format(trn_val_tst, n_steps, step, self.sum_loss/self.n_preds, self.n_preds/(time.time()-self.start, Gb_allocated)))
         self.n_preds = 0
