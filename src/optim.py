@@ -123,21 +123,10 @@ class ComputeLossMLM:
         self.opt = opt
 
     def __call__(self, h, y): 
-        torch.cuda.empty_cache()
-        print('memory allocatedA = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
         x_hat = self.generator(h) # project x softmax #[bs,sl,V]
-        torch.cuda.empty_cache()
-        print('memory allocatedB = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
         x_hat = x_hat.contiguous().view(-1, x_hat.size(-1)) #[bs*sl,V]
-        torch.cuda.empty_cache()
-        print('memory allocatedC = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
         y = y.contiguous().view(-1) #[bs*sl]
-        torch.cuda.empty_cache()
-        print('memory allocatedD = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
         loss = self.criterion(x_hat, y) 
-        del x_hat
-        torch.cuda.empty_cache()
-        print('memory allocatedE = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
         return loss #not normalized
 
 
