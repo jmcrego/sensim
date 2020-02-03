@@ -132,10 +132,10 @@ class ComputeLossMLM:
         torch.cuda.empty_cache()
         print('memory allocatedC = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
         y = y.contiguous().view(-1) #[bs*sl]
-        del x_hat
         torch.cuda.empty_cache()
         print('memory allocatedD = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
         loss = self.criterion(x_hat, y) 
+        del x_hat
         torch.cuda.empty_cache()
         print('memory allocatedE = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
         return loss #not normalized
