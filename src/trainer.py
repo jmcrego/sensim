@@ -189,6 +189,7 @@ class Trainer():
 
 
     def validation(self):
+        torch.cuda.empty_cache()
         logging.info('Start validation')
         ds = stats()
         self.model.eval()
