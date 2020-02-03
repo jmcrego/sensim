@@ -285,7 +285,8 @@ class DataSet():
                     n += 1
                     src = [s for s in token.tokenize(ls)]
                     tgt = [t for t in token.tokenize(lt)]
-                    if not self.valid_test and self.max_length > 0 and len(src)+len(tgt) > self.max_length: 
+#                    if not self.valid_test and self.max_length > 0 and len(src)+len(tgt) > self.max_length: 
+                    if self.max_length > 0 and len(src)+len(tgt) > self.max_length: 
                         continue
                     m += 1
                     self.data.append([src,tgt]) ### [s1, s2, ..., sn], [t1, t2, ..., tn]
