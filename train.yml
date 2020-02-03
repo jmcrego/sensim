@@ -13,7 +13,7 @@ valid:
   - [ './data/ECB.val.en.gz',  './data/ECB.val.fr.gz'  ]
   - [ './data/EMEA.val.en.gz', './data/EMEA.val.fr.gz' ]
   - [ './data/KDE4.val.en.gz', './data/KDE4.val.fr.gz' ]
-max_length: 160
+max_length: 100 #160
 swap_bitext: true
 batch_size: [8, 2]
 train_steps: 1000000
