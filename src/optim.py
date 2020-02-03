@@ -174,7 +174,7 @@ class ComputeLossSIM:
             logging.error('bad pooling method {}'.format(self.pooling))
             sys.exit()
 
-        print('loss (mean over batch examples)',loss)
+        #print('loss (mean over batch examples)',loss)
         return loss
 
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words

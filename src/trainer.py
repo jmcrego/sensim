@@ -123,7 +123,7 @@ class Trainer():
                     continue
                 h = self.model.forward(x,x_mask)
                 loss = self.loss_mlm(h, y_mask, n_topredict)
-                print(loss)
+                #print(loss)
                 self.optimizer.zero_grad() 
                 loss.backward()
                 self.optimizer.step()
