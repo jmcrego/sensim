@@ -65,26 +65,30 @@ class LabelSmoothing(nn.Module):
         self.true_dist = None
         logging.debug('built criterion (label smoothing)')
         
-    def forward(self, x, target): #x is [batch_size*max_len, embedding_size] target is [batch_size*max_len, 1]
+    def forward(self, x, target): 
+        #x is [batch_size*max_len, vocab] 
+        #target is [batch_size*max_len]
         assert x.size(1) == self.size
-        true_dist = x.data.clone()
-        true_dist.fill_(self.smoothing / (self.size - 2))
-        true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+        true_dist = x.data.clone() #[batch_size*max_len, vocab]
+        true_dist.fill_(self.smoothing / (self.size - 2)) #true_dist is filled with value=smoothing/(size-2)
+        true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence) #moves value=confidence to tensor true_dist and indiceds target_data dim=1
         true_dist[:, self.padding_idx] = 0
         mask = torch.nonzero(target.data == self.padding_idx)
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         self.true_dist = true_dist
-        return self.criterion(x, Variable(true_dist, requires_grad=False))
+        #return self.criterion(x, Variable(true_dist, requires_grad=False))
+        return self.criterion(x, true_dist)
 
 
 class CrossEntropy(nn.Module):
     def __init__(self,padding_idx):
         super(CrossEntropy, self).__init__()
-        self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=padding_idx, reduce=None, reduction='none')
+        self.padding_idx = padding_idx
+        self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=padding_idx, reduction='sum')
         logging.debug('built criterion (CrossEntropy)')
         
-    def forward(self, x, target): 
+    def forward(self, x, target): #not sure it works jmcc
         return self.criterion(x, target)
 
 class CosineSIM(nn.Module):
@@ -120,11 +124,10 @@ class ComputeLossMLM:
         self.opt = opt
 
     def __call__(self, h, y, n_topredict): 
-        x_hat = self.generator(h) # project x softmax 
-        x_hat = x_hat.contiguous().view(-1, x_hat.size(-1))
-        y = y.contiguous().view(-1)
-
-        loss = self.criterion(x_hat, y) / n_topredict #(normalised per token predicted)_
+        x_hat = self.generator(h) # project x softmax #[bs,sl,V]
+        x_hat = x_hat.contiguous().view(-1, x_hat.size(-1)) #[bs*sl,V]
+        y = y.contiguous().view(-1) #[bs*sl]
+        loss = self.criterion(x_hat, y) / n_topredict #(normalised per token predicted)        
         return loss 
 
 
@@ -141,7 +144,7 @@ class ComputeLossSIM:
         #slen [bs] length of source sentences (I) in batch
         #tlen [bs] length of target sentences (J) in batch
         #y  [bs] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
-        #mask_s [bs,ls]
+        #mask_s [bs,sl]
         #mask_t [bs,tl]
         #mask_st [bs,sl,tl]
         mask_s = mask_s.unsqueeze(-1).type(torch.float64)
