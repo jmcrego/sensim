@@ -21,7 +21,7 @@ steps:
   mlm: { p_mask: 0.15, r_same: 0.1, r_rand: 0.1 }
   sim: { run: false, p_uneven: 0.5, pooling: 'align', R: 1.0 } #max, mean, cls, align
 checkpoint_every_steps: 10000
-validation_every_steps: 100
-report_every_steps: 1000
+validation_every_steps: 1000
+report_every_steps: 100
 average_last_n: 10
 
