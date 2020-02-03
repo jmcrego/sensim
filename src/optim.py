@@ -61,8 +61,8 @@ class LabelSmoothing(nn.Module):
         self.padding_idx = padding_idx
         self.confidence = 1.0 - smoothing
         self.smoothing = smoothing
-        self.size = size
-        self.true_dist = None
+        self.size = size #vocab size
+        #self.true_dist = None
         logging.info('built criterion (label smoothing)')
         
     def forward(self, x, target): 
@@ -72,15 +72,12 @@ class LabelSmoothing(nn.Module):
         true_dist = x.data.clone() #[batch_size*max_len, vocab]
         true_dist.fill_(self.smoothing / (self.size - 2)) #true_dist is filled with value=smoothing/(size-2)
         true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence) #moves value=confidence to tensor true_dist and indiceds target_data dim=1
-        true_dist[:, self.padding_idx] = 0
+        true_dist[:, self.padding_idx] = 0 #prob mass on padding_idx is 0
         mask = torch.nonzero(target.data == self.padding_idx)
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
-        self.true_dist = true_dist
+        #self.true_dist = true_dist
         return self.criterion(x, true_dist) #total loss of this batch (not normalized)
-
-    def name(self):
-        return 'labelsmooth KLDiv'
 
 
 class CrossEntropy(nn.Module):
@@ -93,8 +90,6 @@ class CrossEntropy(nn.Module):
     def forward(self, x, target): 
         return self.criterion(x, target) #total loss of this batch (not normalized)
 
-    def name(self):
-        return 'xent'
 
 class CosineSIM(nn.Module):
     def __init__(self, margin=0.0):
@@ -105,8 +100,6 @@ class CosineSIM(nn.Module):
     def forward(self, s1, s2, target):
         return self.criterion(s1, s2, target) #total loss of this batch (not normalized)
 
-    def name(self):
-        return 'cos'
 
 class AlignSIM(nn.Module):
     def __init__(self):
@@ -119,8 +112,6 @@ class AlignSIM(nn.Module):
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
         return torch.sum(sum_error) #total loss of this batch (not normalized)
 
-    def name(self):
-        return 'align'
 
 
 ##################################################################

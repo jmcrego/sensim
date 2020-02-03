@@ -17,15 +17,11 @@ from src.optim import NoamOpt, LabelSmoothing, CosineSIM, AlignSIM, ComputeLossM
 
 def sequence_mask(lengths, mask_n_initials=0):
     bs = len(lengths)
-    #print('lengths',lengths)
     l = lengths.max()
-    #print('l',l)
     msk = np.cumsum(np.ones([bs,l],dtype=int), axis=1).T #[l,bs] (transpose to allow combine with lenghts)
-    #print('msk',msk.shape)
     mask = (msk <= lengths-1) ### i use lenghts-1 because the last unpadded word is <eos> and i want it masked too
     if mask_n_initials:
         mask &= (msk > mask_n_initials)
-    #print('mask',mask)
     return mask.T #[bs,l]
 
 def st_mask(slen,tlen,mask_n_initials=0):
@@ -45,9 +41,9 @@ class stats():
         self.sum_loss = 0.0
         self.start = time.time()
 
-    def add_batch(self,batch_loss,n_topredict):
+    def add_batch(self,batch_loss,n_predicted):
         self.sum_loss += batch_loss
-        self.n_preds += n_topredict
+        self.n_preds += n_predicted
 
     def report(self,n_steps,step,trn_val_tst):
         logging.info("{} step: {} ({}) Loss: {:.4f} Predictions/sec: {:.1f}".format(trn_val_tst, n_steps, step, self.sum_loss/self.n_preds, self.n_preds/(time.time()-self.start)))
@@ -203,7 +199,7 @@ class Trainer():
                     logging.info('batch with nothing to predict')
                     continue
                 h = self.model.forward(x,x_mask)
-                batch_loss = self.loss_mlm(h, y_mask, n_topredict)
+                batch_loss = self.loss_mlm(h, y_mask)
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
