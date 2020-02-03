@@ -219,16 +219,9 @@ class Trainer():
 
     def mlm_batch_cuda(self, batch):
         batch = np.array(batch.idx_src)
-        #print('batch',batch.shape)
-        #print(batch)
         x = torch.from_numpy(batch) #[batch_size, max_len] contains the original words. some will be masked
-        #print('x',x.size())
-        #print(x)
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]. Contains true for words to be predicted (masked), false otherwise
-        #print('x_mask',x_mask.size())
-        #print(x_mask)
-        y_mask = torch.ones_like(x) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
-        #print('y_mask',y_mask.size())
+        y_mask = torch.ones_like(x, dtype=torch.int64) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
 
         p_mask = self.steps['mlm']['p_mask']
         r_same = self.steps['mlm']['r_same']
