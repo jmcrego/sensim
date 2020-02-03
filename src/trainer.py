@@ -209,7 +209,8 @@ class Trainer():
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
                 batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
-                del x, x_mask, y_mask
+
+            del x, x_mask, y_mask
             ds.add_batch(batch_loss,n_predictions)
         ds.report(self.n_steps_so_far,step,'Valid')
         logging.info('End validation')
