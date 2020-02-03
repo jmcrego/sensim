@@ -79,6 +79,9 @@ class LabelSmoothing(nn.Module):
         self.true_dist = true_dist
         return self.criterion(x, true_dist) #total loss of this batch (not normalized)
 
+    def name(self):
+        return 'labelsmooth KLDiv'
+
 
 class CrossEntropy(nn.Module):
     def __init__(self,padding_idx):
@@ -90,6 +93,9 @@ class CrossEntropy(nn.Module):
     def forward(self, x, target): 
         return self.criterion(x, target) #total loss of this batch (not normalized)
 
+    def name(self):
+        return 'xent'
+
 class CosineSIM(nn.Module):
     def __init__(self, margin=0.0):
         super(CosineSIM, self).__init__()
@@ -99,6 +105,8 @@ class CosineSIM(nn.Module):
     def forward(self, s1, s2, target):
         return self.criterion(s1, s2, target) #total loss of this batch (not normalized)
 
+    def name(self):
+        return 'cos'
 
 class AlignSIM(nn.Module):
     def __init__(self):
@@ -110,6 +118,10 @@ class AlignSIM(nn.Module):
         error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
         return torch.sum(sum_error) #total loss of this batch (not normalized)
+
+    def name(self):
+        return 'align'
+
 
 ##################################################################
 ### Compute losses ###############################################
