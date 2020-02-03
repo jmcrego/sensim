@@ -116,8 +116,6 @@ class Trainer():
 
     def __call__(self):
         logging.info('Start train n_steps_so_far={}'.format(self.n_steps_so_far))
-        self.validation()
-
         ts = stats()
         for batch in self.data_train:
             self.model.train()
@@ -198,16 +196,12 @@ class Trainer():
         for batch in self.data_valid:
             if not self.steps['sim']['run']: ### pre-training (MLM)
                 step = 'mlm'
-                logging.info('load1 batch')
                 x, x_mask, y_mask = self.mlm_batch_cuda(batch)
-                logging.info('size batch {}'.format(x.size()))
                 n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
                 if n_predictions == 0: #nothing to predict
                     logging.info('batch with nothing to predict')
                     continue
-                logging.info('forward')
                 h = self.model.forward(x,x_mask)
-                logging.info('computeloss')
                 batch_loss = self.computeloss(h, y_mask)
             else: ### fine-tunning (SIM)
                 step = 'sim'
