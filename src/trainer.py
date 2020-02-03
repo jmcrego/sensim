@@ -210,7 +210,7 @@ class Trainer():
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
                 batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
-                del x1, x2, l1, l2 x1_mask, x2_mask, y, mask_s, mask_t
+                del x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t
             torch.cuda.empty_cache()
             ds.add_batch(batch_loss,n_predictions)
         ds.report(self.n_steps_so_far,step,'Valid')
