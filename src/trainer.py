@@ -199,13 +199,14 @@ class Trainer():
                 x, x_mask, y_mask = self.mlm_batch_cuda(batch)
                 print('memory allocated2 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
                 n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
+                print('memory allocated3 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
                 if n_predictions == 0: #nothing to predict
                     logging.info('batch with nothing to predict')
                     continue
                 h = self.model.forward(x,x_mask)
-                print('memory allocated3 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
-                batch_loss = self.computeloss(h, y_mask)
                 print('memory allocated4 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
+                batch_loss = self.computeloss(h, y_mask)
+                print('memory allocated5 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
