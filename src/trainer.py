@@ -46,7 +46,10 @@ class stats():
         self.n_preds += n_predicted
 
     def report(self,n_steps,step,trn_val_tst):
-        logging.info("{} step: {} ({}) Loss: {:.4f} Predictions/sec: {:.1f}".format(trn_val_tst, n_steps, step, self.sum_loss/self.n_preds, self.n_preds/(time.time()-self.start)))
+        torch.cuda.empty_cache()
+        Gb_allocated = torch.cuda.memory_allocated(device=torch.cuda.current_device()) / 1073741824
+
+        logging.info("{} step: {} ({}) Loss: {:.4f} Predictions/sec: {:.1f} [GPU:{}Gb]".format(trn_val_tst, n_steps, step, self.sum_loss/self.n_preds, self.n_preds/(time.time()-self.start, Gb_allocated)))
         self.n_preds = 0
         self.sum_loss = 0.0
         self.start = time.time()
@@ -177,8 +180,7 @@ class Trainer():
             ### validation
             ###
             if self.data_valid is not None and self.validation_every_steps > 0 and self.n_steps_so_far % self.validation_every_steps == 0:
-                with torch.no_grad():
-                    self.validation()
+                self.validation()
             ###
             ### stop training
             ###
@@ -192,32 +194,26 @@ class Trainer():
     def validation(self):
         logging.info('Start validation')
         ds = stats()
-        self.model.eval() ### avoids dropout
-        for batch in self.data_valid:
-            if not self.steps['sim']['run']: ### pre-training (MLM)
-                step = 'mlm'
-                print('memory allocated1 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
-                x, x_mask, y_mask = self.mlm_batch_cuda(batch)
-                print('memory allocated2 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
-                n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
-                print('memory allocated3 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
-                if n_predictions == 0: #nothing to predict
-                    logging.info('batch with nothing to predict')
-                    continue
-                h = self.model.forward(x,x_mask)
-                print('memory allocated4 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
-                batch_loss = self.computeloss(h, y_mask)
-                print('memory allocated5 = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
-            else: ### fine-tunning (SIM)
-                step = 'sim'
-                x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
-                n_predictions = x1.size(0)
-                h1 = self.model.forward(x1,x1_mask)
-                h2 = self.model.forward(x2,x2_mask)
-                batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
-            torch.cuda.empty_cache()
-            print('memory allocated = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
-            ds.add_batch(batch_loss,n_predictions)
+        with torch.no_grad():
+            self.model.eval() ### avoids dropout
+            for batch in self.data_valid:
+                if not self.steps['sim']['run']: ### pre-training (MLM)
+                    step = 'mlm'
+                    x, x_mask, y_mask = self.mlm_batch_cuda(batch)
+                    n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
+                    if n_predictions == 0: #nothing to predict
+                        logging.info('batch with nothing to predict')
+                        continue
+                    h = self.model.forward(x,x_mask)
+                    batch_loss = self.computeloss(h, y_mask)
+                else: ### fine-tunning (SIM)
+                    step = 'sim'
+                    x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
+                    n_predictions = x1.size(0)
+                    h1 = self.model.forward(x1,x1_mask)
+                    h2 = self.model.forward(x2,x2_mask)
+                    batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
+                ds.add_batch(batch_loss,n_predictions)
         ds.report(self.n_steps_so_far,step,'Valid')
         logging.info('End validation')
 
