@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import logging
 import math, copy, time
-from torch.autograd import Variable
+#from torch.autograd import Variable
 
 def clones(m, N):
     return nn.ModuleList([copy.deepcopy(m) for _ in range(N)])
@@ -152,55 +152,9 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
         
     def forward(self, x):
-        x = x + Variable(self.pe[:, :x.size(1)], requires_grad=False)
+        #x = x + Variable(self.pe[:, :x.size(1)], requires_grad=False)
+        x = x + self.pe[:, :x.size(1)]
         return self.dropout(x)
-
-
-class ComputeLossMsk:
-    def __init__(self, generator, criterion, opt=None):
-        self.generator = generator
-        self.criterion = criterion
-        self.opt = opt
-
-    def __call__(self, h, y, n_topredict): 
-        if self.opt is not None:
-            self.opt.optimizer.zero_grad()
-        x_hat = self.generator(h) # project x softmax 
-        #x_hat [batch_size, max_len, |vocab|]
-        #y     [batch_size, max_len]
-        x_hat = x_hat.contiguous().view(-1, x_hat.size(-1))
-        y = y.contiguous().view(-1)
-        #x_hat [batch_size*max_len, |vocab|]
-        #y     [batch_size*max_len]
-
-        #n_ok = ((y == torch.argmax(x_hat, dim=1)) * (y != self.criterion.padding_idx)).sum()
-        #logging.debug('batch {}/{} Acc={:.2f}'.format(n_ok,n_topredict,100.0*n_ok/n_topredict))
-
-        loss = self.criterion(x_hat, y) / n_topredict
-        loss.backward()
-        if self.opt is not None:
-            self.opt.step() #performs a parameter update based on the current gradient
-        return loss.data * n_topredict
-
-
-class ComputeLossFT:
-    def __init__(self, criterion, opt=None):
-        self.criterion = criterion
-        self.opt = opt
-
-    def __call__(self, h1, h2, mask1, mask2, y): 
-        #h1 [batch_size, max_len, embedding_size] embeddings of source words after encoder
-        #h2 [batch_size, max_len, embedding_size] embeddings of target words after encoder
-        #y [batch_size, max_len] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
-        if self.opt is not None:
-            self.opt.optimizer.zero_grad()
-
-        loss = self.criterion(h1, h2, mask1, mask2, y)
-        loss.backward()
-        if self.opt is not None:
-            self.opt.step() #performs a parameter update based on the current gradient
-
-        return loss.data
 
 
 def make_model(vocab, N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
