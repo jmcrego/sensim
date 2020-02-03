@@ -192,7 +192,6 @@ class Trainer():
 
     def validation(self):
         logging.info('Start validation')
-        return
         ds = stats()
         self.model.eval()
         for batch in self.data_valid:
