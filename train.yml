@@ -22,6 +22,6 @@ steps:
   sim: { run: false, p_uneven: 0.5, pooling: 'align', R: 1.0 } #max, mean, cls, align
 checkpoint_every_steps: 10000
 validation_every_steps: 100
-report_every_steps: 100
+report_every_steps: 1000
 average_last_n: 10
 
