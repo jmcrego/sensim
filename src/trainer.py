@@ -195,7 +195,6 @@ class Trainer():
         for batch in self.data_valid:
             if not self.steps['sim']['run']: ### pre-training (MLM)
                 step = 'mlm'
-                print('new batch example')
                 x, x_mask, y_mask = self.mlm_batch_cuda(batch)
                 n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
                 if n_predictions == 0: #nothing to predict
@@ -205,6 +204,7 @@ class Trainer():
                 batch_loss = self.computeloss(h, y_mask)
                 del x, x_mask, y_mask
                 torch.cuda.empty_cache()
+                print('memory allocated = {}'.format(torch.cuda.memory_allocated(device=torch.cuda.current_device())))
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
