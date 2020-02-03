@@ -77,6 +77,7 @@ class Trainer():
         beta1 = opts.cfg['beta1']
         beta2 = opts.cfg['beta2']
         eps = opts.cfg['eps']
+
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         if self.cuda:
             self.model.cuda()
@@ -96,10 +97,11 @@ class Trainer():
             self.criterion.cuda()
 
         self.load_checkpoint() #loads if exists
+
         if self.steps['sim']['run']:
-            self.loss_sim = ComputeLossSIM(self.criterion, self.steps['sim']['pooling'], self.steps['sim']['R'], self.optimizer)
+            self.computeloss = ComputeLossSIM(self.criterion, self.steps['sim']['pooling'], self.steps['sim']['R'], self.optimizer)
         else:
-            self.loss_mlm = ComputeLossMLM(self.model.generator, self.criterion, self.optimizer)
+            self.computeloss = ComputeLossMLM(self.model.generator, self.criterion, self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
 
         logging.info('read Train data')
@@ -114,6 +116,8 @@ class Trainer():
 
     def __call__(self):
         logging.info('Start train n_steps_so_far={}'.format(self.n_steps_so_far))
+        self.validation()
+
         ts = stats()
         for batch in self.data_train:
             self.model.train()
@@ -131,7 +135,7 @@ class Trainer():
                     logging.info('batch with nothing to predict')
                     continue
                 h = self.model.forward(x,x_mask)
-                batch_loss = self.loss_mlm(h, y_mask)
+                batch_loss = self.computeloss(h, y_mask)
                 loss = batch_loss / n_predictions
                 self.optimizer.zero_grad() 
                 loss.backward()
@@ -153,7 +157,7 @@ class Trainer():
                 h2 = self.model.forward(x2,x2_mask)
                 #print('h1',h1.size())
                 #print(h1)
-                batch_loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
+                batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
                 loss = batch_loss / n_predictions
                 self.optimizer.zero_grad() 
                 loss.backward()
@@ -190,7 +194,7 @@ class Trainer():
         torch.cuda.empty_cache()
         logging.info('Start validation')
         ds = stats()
-        #self.model.eval()
+        self.model.eval() ### avoids dropout
         for batch in self.data_valid:
             if not self.steps['sim']['run']: ### pre-training (MLM)
                 step = 'mlm'
@@ -200,14 +204,14 @@ class Trainer():
                     logging.info('batch with nothing to predict')
                     continue
                 h = self.model.forward(x,x_mask)
-                batch_loss = self.loss_mlm(h, y_mask)
+                batch_loss = self.computeloss(h, y_mask)
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
                 n_predictions = x1.size(0)
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
-                batch_loss = self.loss_sim(h1, h2, l1, l2, y, mask_s, mask_t)
+                batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
             ds.add_batch(batch_loss,n_predictions)            
         ds.report(self.n_steps_so_far,step,'Valid')
         logging.info('End validation')
