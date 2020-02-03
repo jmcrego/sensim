@@ -50,7 +50,7 @@ class stats():
         self.n_preds += n_topredict
 
     def report(self,n_steps,step,trn_val_tst):
-        logging.info("{} step: {} ({}) Loss: {:.4f} Predictions/sec: {:.1f}".format(trn_val_tst, n_steps, step, sum_loss/n_preds, n_preds/(time.time()-self.start)))
+        logging.info("{} step: {} ({}) Loss: {:.4f} Predictions/sec: {:.1f}".format(trn_val_tst, n_steps, step, self.sum_loss/self.n_preds, self.n_preds/(time.time()-self.start)))
         self.n_preds = 0
         self.sum_loss = 0.0
         self.start = time.time()
@@ -346,20 +346,6 @@ class Trainer():
         logging.info('averaged {} models into {}'.format(len(files), fout))
 
 
-    def stats(self, n_words_so_far_step,sum_loss_so_far_step,steps_run):
-        total_steps = 0
-        for step in steps_run:
-            total_steps += steps_run[step]
-        if total_steps == 0: 
-            return ''
-
-        desc = []
-        for step in steps_run:
-            if n_words_so_far_step[step] == 0:
-                continue
-            desc.append('{} {:.1f}% loss:{:.4f}'.format(step, 100.0*steps_run[step]/total_steps, sum_loss_so_far_step[step]/n_words_so_far_step[step]))
-
-        return '[{}]'.format(' '.join(desc))
 
 
 
