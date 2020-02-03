@@ -211,17 +211,19 @@ class Trainer():
                 h2 = self.model.forward(x2,x2_mask)
                 batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
 #                del x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t
-            torch.cuda.empty_cache()
+#            torch.cuda.empty_cache()
             ds.add_batch(batch_loss,n_predictions)
         ds.report(self.n_steps_so_far,step,'Valid')
         logging.info('End validation')
 
 
     def mlm_batch_cuda(self, batch):
+        batch2 = batch
         batch = np.array(batch.idx_src)
         x = torch.from_numpy(batch) #[batch_size, max_len] contains the original words. some will be masked
         x_mask = torch.as_tensor((batch != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]. Contains true for words to be predicted (masked), false otherwise
-        y_mask = torch.ones_like(x, dtype=torch.int64) * self.vocab.idx_pad #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
+        #y_mask = torch.ones_like(x, dtype=torch.int64) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
+        y_mask = torch.from_numpy(batch2)
 
         p_mask = self.steps['mlm']['p_mask']
         r_same = self.steps['mlm']['r_same']
@@ -234,7 +236,7 @@ class Trainer():
 
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
-                #y_mask[i,j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
+                y_mask[i,j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
                 if not self.vocab.is_reserved(x[i,j]):
                     r = random.random()     # float in range [0.0, 1,0)
                     if r < p_mask:          ### is masked
