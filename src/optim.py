@@ -142,7 +142,7 @@ class ComputeLossSIM:
         #ht [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
         #slen [bs] length of source sentences (I) in batch
         #tlen [bs] length of target sentences (J) in batch
-        #y  [bs] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
+        #y [bs] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
         #mask_s [bs,sl]
         #mask_t [bs,tl]
         #mask_st [bs,sl,tl]
@@ -165,9 +165,12 @@ class ComputeLossSIM:
             loss = self.criterion(s, t, y)
 
         elif self.pooling == 'align':
-            S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]
-            aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
-            loss = self.criterion(aggr_t,y,mask_t.squeeze())
+            S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
+            exp_rS = torch.exp(S_st * self.R)
+            #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
+            sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
+            log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
+            loss = self.criterion(log_sum_exp_rS_div_R,y,mask_t.squeeze())
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
@@ -175,12 +178,13 @@ class ComputeLossSIM:
 
         return loss #not normalized
 
+'''
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
         exp_rS = torch.exp(S_st * self.R)
         sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
         log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
         return log_sum_exp_rS_div_R
-
+'''
 
 
 
