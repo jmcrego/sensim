@@ -60,9 +60,9 @@ class Infer():
             for ls in fs:
                 src = [s for s in self.token.tokenize(ls)]
                 idx_src = [self.vocab[s] for s in src]
-                idx_src.insert(0,idx_bos)
-                idx_src.append(idx_eos)
-                idx_src.insert(0,idx_cls)
+                idx_src.insert(0,self.vocab.idx_bos)
+                idx_src.append(self.vocab.idx_eos)
+                idx_src.insert(0,self.vocab.idx_cls)
                 x = torch.from_numpy([idx_src]) #[batch_size, max_len] the original words with padding
                 x_mask = torch.as_tensor((x != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
                 mask_s = torch.from_numpy(sequence_mask([len(idx_src)],mask_n_initials=2))
