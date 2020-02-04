@@ -32,6 +32,7 @@ class Infer():
         h = opts.cfg['num_heads']
         dropout = opts.cfg['dropout']
         self.token = OpenNMTTokenizer(**opts.cfg['token'])
+        self.pooling = opts.pooling
 
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         if self.cuda:
@@ -44,55 +45,81 @@ class Infer():
             checkpoint = torch.load(file)
             self.model.load_state_dict(checkpoint['model'])
             logging.info('loaded checkpoint {}'.format(file))
-#        else:
-#            logging.error('no checkpoint available')
-#            sys.exit()
+        else:
+            logging.error('no checkpoint available')
+            sys.exit()
 
 
-    def __call__(self, fsrc, pooling='cls'):
+    def __call__(self, file):
         logging.info('Start testing')
-        if fsrc.endswith('.gz'): fs = gzip.open(fsrc, 'rb')
-        else: fs = io.open(fsrc, 'r', encoding='utf-8', newline='\n', errors='ignore')
+        if file.endswith('.gz'): f = gzip.open(file, 'rb')
+        else: f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
         self.data = []
         self.model.eval()
         with torch.no_grad():
-            for ls in fs:
-                src = [s for s in self.token.tokenize(ls)]
+            for l in f:
+                src_tgt = l.split('\t')
+
+                lsrc = src_tgt[0]
+                src = [s for s in self.token.tokenize(lsrc)]
                 idx_src = [self.vocab[s] for s in src]
                 idx_src.insert(0,self.vocab.idx_bos)
                 idx_src.append(self.vocab.idx_eos)
                 idx_src.insert(0,self.vocab.idx_cls)
-
                 batch_src = np.array([idx_src])
                 batch_src_len = np.array([len(idx_src)])
-
-                x = torch.from_numpy(batch_src) #[batch_size, max_len] the original words with padding
-                x_mask = torch.as_tensor((x != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
+                x1 = torch.from_numpy(batch_src) #[batch_size, max_len] the original words with padding
+                x1_mask = torch.as_tensor((x1 != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
                 mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2))
-                #print('x',x.size())
-                #print('x_mask',x_mask.size())
-                #print('mask_s',mask_s.size())
-
                 if self.cuda:
-                    x = x.cuda()
-                    x_mask = x_mask.cuda()
+                    x1 = x1.cuda()
+                    x1_mask = x1_mask.cuda()
                     mask_s = mask_s.cuda()
-
-                h = self.model.forward(x,x_mask)
-                #print('h',h.size())
-
+                h1 = self.model.forward(x1,x1_mask)
                 mask_s = mask_s.unsqueeze(-1).type(torch.float64)
-                if pooling == 'max':
-                    s, _ = torch.max(h*mask_s + (1.0-mask_s)*-999.9, dim=1) #-999.9 should be -Inf but it produces an nan when multiplied by 0.0
-                elif pooling == 'mean':
-                    s = torch.sum(h * mask_s, dim=1) / torch.sum(mask_s, dim=1)
-                elif pooling == 'cls':
-                    s = h[:, 0, :] # take embedding of first token <cls>
 
-                sentence = torch.Tensor.cpu(s).detach().numpy()[0]
-#                print(sentence.shape)
-                print(' '.join([str(tok) for tok in sentence]))
+                if len(src_tgt)>1:
+                    ltgt = src_tgt[1]
+                    tgt = [t for t in self.token.tokenize(ltgt)]
+                    idx_tgt = [self.vocab[t] for t in tgt]
+                    idx_tgt.insert(0,self.vocab.idx_bos)
+                    idx_tgt.append(self.vocab.idx_eos)
+                    idx_tgt.insert(0,self.vocab.idx_cls)
+                    batch_tgt = np.array([idx_tgt])
+                    batch_tgt_len = np.array([len(idx_tgt)])
+                    x2 = torch.from_numpy(batch_tgt) #[batch_size, max_len] the original words with padding
+                    x2_mask = torch.as_tensor((x2 != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
+                    mask_t = torch.from_numpy(sequence_mask(batch_tgt_len,mask_n_initials=2))
+                    if self.cuda:
+                        x2 = x2.cuda()
+                        x2_mask = x2_mask.cuda()
+                        mask_t = mask_t.cuda()
+                    h2 = self.model.forward(x2,x2_mask)
+                    mask_t = mask_t.unsqueeze(-1).type(torch.float64)
+
+
+                if self.pooling == 'max':
+                    s, _ = torch.max(h1*mask_s + (1.0-mask_s)*-999.9, dim=1) #-999.9 should be -Inf but it produces an nan when multiplied by 0.0
+                    if len(src_tgt)>1:
+                        t, _ = torch.max(h2*mask_t + (1.0-mask_t)*-999.9, dim=1) #-999.9 should be -Inf but it produces an nan when multiplied by 0.0
+                elif self.pooling == 'mean':
+                    s = torch.sum(h1 * mask_s, dim=1) / torch.sum(mask_s, dim=1)
+                    if len(src_tgt)>1:
+                        t = torch.sum(h2 * mask_t, dim=1) / torch.sum(mask_t, dim=1)
+                elif self.pooling == 'cls':
+                    s = h1[:, 0, :] # take embedding of first token <cls>
+                    if len(src_tgt)>1:
+                        t = h2[:, 0, :] # take embedding of first token <cls>
+                else:
+                    logging.error('bad pooling method: {}'.format(self.pooling))
+
+                if len(src_tgt)==1:
+                    sentence = torch.Tensor.cpu(s).detach().numpy()[0]
+                    print(' '.join([str(tok) for tok in sentence]))
+                elif len(src_tgt)>1:
+                    sim = np.sum((s/np.linalg.norm(s)) * (t/np.linalg.norm(t))) 
+                    print(sim)
 
         logging.info('End validation')
 

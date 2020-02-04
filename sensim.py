@@ -11,14 +11,6 @@ from src.model import make_model
 from src.trainer import Trainer
 from src.infer import Infer
 
-'''
-from src.optim import sequence_mask, st_mask
-import numpy as np
-slen = np.array([2,3,2])
-tlen = np.array([4,3,2])
-mask = st_mask(slen,tlen,0)
-sys.exit()
-'''
 
 class Argv():
 
@@ -29,6 +21,8 @@ class Argv():
    -infer     YAML : test config file (inference mode)
    -learn     YAML : train config file (learning mode)
    -config    YAML : modeling/optim config file (needed when learning from scratch)
+
+   -pooling STRING : inference pooling. Either: max, mean or cls (default mean)
 
    -seed       INT : seed value (default 12345)
    -log       FILE : log file (default stderr)
@@ -49,6 +43,7 @@ class Argv():
         self.flearn = None
         self.finfer = None
         self.seed = 12345
+        self.pooling = 'mean'
         while len(argv):
             tok = argv.pop(0)
             if   (tok=="-config"   and len(argv)): self.fcfg = argv.pop(0)
@@ -57,6 +52,7 @@ class Argv():
             elif (tok=="-loglevel" and len(argv)): self.log_level = argv.pop(0)
             elif (tok=="-dir"      and len(argv)): self.dir = argv.pop(0)
             elif (tok=="-infer"    and len(argv)): self.finfer = argv.pop(0)
+            elif (tok=="-pooling"  and len(argv)): self.pooling = argv.pop(0)
             elif (tok=="-seed"     and len(argv)): self.seed = int(argv.pop(0))
             elif (tok=="-h"):
                 sys.stderr.write("{}".format(self.usage))
@@ -144,7 +140,7 @@ if __name__ == "__main__":
         #    opts.test = yaml.load(file, Loader=yaml.FullLoader)
         #    logging.debug('Read config for inference : {}'.format(opts.test))
         infer = Infer(opts)
-        infer(opts.finfer, 'mean')
+        infer(opts.finfer)
     else:
         with open(opts.flearn) as file:
             opts.train = yaml.load(file, Loader=yaml.FullLoader)
