@@ -144,7 +144,7 @@ if __name__ == "__main__":
         #    opts.test = yaml.load(file, Loader=yaml.FullLoader)
         #    logging.debug('Read config for inference : {}'.format(opts.test))
         infer = Infer(opts)
-#        infer(opts.finfer, 'mean')
+        infer(opts.finfer, 'mean')
     else:
         with open(opts.flearn) as file:
             opts.train = yaml.load(file, Loader=yaml.FullLoader)
