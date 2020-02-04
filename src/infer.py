@@ -89,7 +89,9 @@ class Infer():
                     s = torch.sum(h * mask_s, dim=1) / torch.sum(mask_s, dim=1)
                 elif pooling == 'cls':
                     s = h[:, 0, :] # take embedding of first token <cls>
-                print(' '.join([str(f) for f in s]))
+
+                sentence = torch.Tensor.cpu(s).detach().numpy()
+                print(' '.join(sentence))
 
         logging.info('End validation')
 
