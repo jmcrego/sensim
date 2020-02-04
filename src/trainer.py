@@ -12,7 +12,7 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 from src.dataset import Vocab, DataSet, OpenNMTTokenizer, batch
 from src.model import make_model
-from src.optim import NoamOpt, LabelSmoothing, CosineSIM, AlignSIM, ComputeLossMLM, ComputeLossSIM, CrossEntropy
+from src.optim import NoamOpt, LabelSmoothing, CosineSIM, AlignSIM, ComputeLossMLM, ComputeLossSIM
 
 
 def sequence_mask(lengths, mask_n_initials=0):
