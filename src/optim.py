@@ -153,6 +153,7 @@ class ComputeLossSIM:
             logging.info('hs {}'.format(hs))
             s, _ = torch.max(hs*mask_s + (1.0-mask_s)*float('-Inf'), dim=1)
             logging.info('s {}'.format(s))
+            sys.exit()
             t, _ = torch.max(ht*mask_t + (1.0-mask_t)*float('-Inf'), dim=1)
             loss = self.criterion(s, t, y)
 
