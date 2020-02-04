@@ -160,7 +160,7 @@ class ComputeLossSIM:
             aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
             loss = self.criterion(aggr_t,y,mask_t.squeeze())
             print('loss',loss)
-            sys.exit()
+#            sys.exit()
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
