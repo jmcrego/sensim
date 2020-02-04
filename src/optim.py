@@ -169,22 +169,20 @@ class ComputeLossSIM:
         return loss #not normalized
 
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
-#        print('S_st',S_st[1])
         #print('mask_s',mask_s[0])
-        maximum = torch.ones(S_st.size(), device=S_st.device) * 19.9
-        S_st_limited = torch.min(S_st, maximum)
-#        print('S_st_limited',S_st_limited[1])
-        exp_rS = torch.exp(S_st_limited * self.R)  ### attention!!! exp(large number) = nan
+#        print('S_st',S_st[1])
+        S_st[S_st > 9.9] = 9.9 ### attention!!! exp(large number) = nan
+#        print('S_st',S_st[1])
+        exp_rS = torch.exp(S_st * self.R)
 #        print('exp_rS',exp_rS[1])
         sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
 #        print('sum_exp_rS',sum_exp_rS[1])
         log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
 #        print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R[1])
-        minimum = torch.ones(log_sum_exp_rS_div_R.size(), dtype=torch.float64, device=S_st.device) * -19.9
-        log_sum_exp_rS_div_R_limited = torch.max(log_sum_exp_rS_div_R, minimum)
-#        print('log_sum_exp_rS_div_R_limited',log_sum_exp_rS_div_R_limited[1])
+        log_sum_exp_rS_div_R[log_sum_exp_rS_div_R < -9.9] = -9.9 ### attention!!! log(zero) = nan
+#        print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R[1])
 
-        return log_sum_exp_rS_div_R_limited
+        return log_sum_exp_rS_div_R
 
 
 
