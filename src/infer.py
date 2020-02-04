@@ -91,7 +91,7 @@ class Infer():
                     s = h[:, 0, :] # take embedding of first token <cls>
 
                 sentence = torch.Tensor.cpu(s).detach().numpy()
-                print(' '.join(sentence))
+                print(' '.join(list(sentence)))
 
         logging.info('End validation')
 
