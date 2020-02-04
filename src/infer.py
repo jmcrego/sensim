@@ -58,7 +58,7 @@ class Infer():
         self.model.eval()
         with torch.no_grad():
             for ls in fs:
-                src = [s for s in token.tokenize(ls)]
+                src = [s for s in self.token.tokenize(ls)]
                 idx_src = [self.vocab[s] for s in src]
                 idx_src.insert(0,idx_bos)
                 idx_src.append(idx_eos)
