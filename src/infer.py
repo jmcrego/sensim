@@ -54,7 +54,7 @@ class Infer():
         logging.info('Start testing')
         if file.endswith('.gz'): f = gzip.open(file, 'rb')
         else: f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
-
+        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         self.data = []
         self.model.eval()
         with torch.no_grad():
@@ -118,10 +118,8 @@ class Infer():
                     sentence = torch.Tensor.cpu(s).detach().numpy()[0]
                     print(' '.join([str(tok) for tok in sentence]))
                 elif len(src_tgt)>1:
-                    s = s[0].cpu()
-                    t = t[0].cpu()
-                    sim = np.sum((s/np.linalg.norm(s)) * (t/np.linalg.norm(t))) 
-                    print(sim)
+                    sim = cos(s,t)
+                    print(sim[0])
 
         logging.info('End validation')
 
