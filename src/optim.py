@@ -181,7 +181,7 @@ class ComputeLossSIM:
         log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
         print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R[1])
         minimum = torch.ones(log_sum_exp_rS_div_R.size(), dtype=torch.float64, device=S_st.device) * -99.9
-        log_sum_exp_rS_div_R_limited, _ = torch.max(log_sum_exp_rS_div_R, minimum)
+        log_sum_exp_rS_div_R_limited = torch.max(log_sum_exp_rS_div_R, minimum)
         print('log_sum_exp_rS_div_R_limited',log_sum_exp_rS_div_R_limited[1])
 
         return log_sum_exp_rS_div_R_limited
