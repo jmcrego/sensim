@@ -82,6 +82,7 @@ class Infer():
                 h = self.model.forward(x,x_mask)
                 print('h',h.size())
 
+                mask_s = mask_s.unsqueeze(-1).type(torch.float64)
                 if pooling == 'max':
                     s, _ = torch.max(h*mask_s + (1.0-mask_s)*-999.9, dim=1) #-999.9 should be -Inf but it produces an nan when multiplied by 0.0
                 elif pooling == 'mean':
