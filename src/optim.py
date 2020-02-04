@@ -168,11 +168,13 @@ class ComputeLossSIM:
         return loss #not normalized
 
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
-        #print('S_st',S_st[0])
+        print('S_st',S_st[0])
         #print('mask_s',mask_s[0])
         S_st_limited = torch.min(S_st, (torch.ones(S_st.size(), device=S_st.device)*9.9))
+        print('S_st_limited',S_st_limited[0])
         exp_rS = torch.exp(S_st_limited * self.R)  ### attention!!! exp(large number) = nan
-        #print('exp_rS',exp_rS[0])
+        print('exp_rS',exp_rS[0])
+        sys.exit()
         sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
         #print('sum_exp_rS',sum_exp_rS[0])
         log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
