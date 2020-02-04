@@ -95,7 +95,7 @@ class AlignSIM(nn.Module):
         
     def forward(self, aggr, y, mask_t):
         sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[b,lt] (by default ones builds on CPU)
-        error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
+        error = torch.log(1.0 + torch.exp(aggr * -sign)) #equation (3) error of each tgt word
 #        print('error',error[1])
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
 #        print('sum_error',sum_error[1])
@@ -159,8 +159,8 @@ class ComputeLossSIM:
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
             aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
             loss = self.criterion(aggr_t,y,mask_t.squeeze())
-#            print('loss',loss)
-#            sys.exit()
+            print('loss',loss)
+            sys.exit()
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
@@ -169,7 +169,7 @@ class ComputeLossSIM:
         return loss #not normalized
 
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
-        print('mask_s',mask_s[0])
+        print('mask_s',mask_s[1])
         print('S_st',S_st[1])
         S_st[S_st > 9.9] = 9.9 ### attention!!! exp(large number) = nan
         print('S_st limited',S_st[1])
@@ -181,7 +181,6 @@ class ComputeLossSIM:
         print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R[1])
         log_sum_exp_rS_div_R[log_sum_exp_rS_div_R < -9.9] = -9.9 ### attention!!! log(zero) = nan
         print('log_sum_exp_rS_div_R limited',log_sum_exp_rS_div_R[1])
-        sys.exit()
         return log_sum_exp_rS_div_R
 
 
