@@ -169,14 +169,14 @@ class ComputeLossSIM:
             loss = self.criterion(s, t, y)
 
         elif self.pooling == 'align':
-#            print('hs',hs[0])
-#            print('ht',ht[0])
+            print('hs',hs[0])
+            print('ht',ht[0])
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) * 0.01 #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
-#            print('S_st',S_st[0])
+            print('S_st',S_st[0])
             aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
             loss = self.criterion(aggr_t,y,mask_t.squeeze())
-#            print('loss',loss)
-#            sys.exit()
+            print('loss',loss)
+            sys.exit()
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
@@ -186,15 +186,13 @@ class ComputeLossSIM:
 
 
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
-#        print('mask_s',mask_s[0])
-        #S_st[S_st > 9.9] = 9.9 ### attention!!! exp(large number) = nan
+        print('mask_s',mask_s[0])
         exp_rS = torch.exp(S_st * self.R)
-#        print('exp_rS',exp_rS[0])
+        print('exp_rS',exp_rS[0])
         sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
-#        print('sum_exp_rS',sum_exp_rS[0])
+        print('sum_exp_rS',sum_exp_rS[0])
         log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
-        #log_sum_exp_rS_div_R[log_sum_exp_rS_div_R < -9.9] = -9.9 ### attention!!! log(zero) = nan
-#        print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R[1])
+        print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R[0])
         return log_sum_exp_rS_div_R
 
 
