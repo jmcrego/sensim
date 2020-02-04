@@ -1,3 +1,5 @@
+import io
+import gzip
 import numpy as np
 import torch
 import logging
@@ -11,6 +13,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 from src.dataset import Vocab, DataSet, OpenNMTTokenizer, batch
+from src.trainer import sequence_mask
 from src.model import make_model
 from src.optim import NoamOpt, LabelSmoothing, CosineSIM, AlignSIM, ComputeLossMLM, ComputeLossSIM
 
@@ -59,12 +62,14 @@ class Infer():
                 idx_src.insert(0,idx_bos)
                 idx_src.append(idx_eos)
                 idx_src.insert(0,idx_cls)
-
                 x = torch.from_numpy([idx_src]) #[batch_size, max_len] the original words with padding
                 x_mask = torch.as_tensor((x != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
-                mask_s = torch.ones(x_mask.size(), dtype=bool)
-                mask_s[0,0:2] = False
-                mask_s[0,-1] = False
+                mask_s = torch.from_numpy(sequence_mask([len(idx_src)],mask_n_initials=2))
+
+                if self.cuda:
+                    x.cuda()
+                    x_mask.cuda()
+                    mask_s.cuda()
 
                 h = self.model.forward(x,x_mask)
                 if pooling == 'max':
