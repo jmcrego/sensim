@@ -75,9 +75,9 @@ class Infer():
                 print(mask_s)
 
                 if self.cuda:
-                    x.cuda()
-                    x_mask.cuda()
-                    mask_s.cuda()
+                    x = x.cuda()
+                    x_mask = x_mask.cuda()
+                    mask_s = mask_s.cuda()
 
                 h = self.model.forward(x,x_mask)
                 if pooling == 'max':
