@@ -151,6 +151,7 @@ class ComputeLossSIM:
 
         if self.pooling == 'max':
             s, _ = torch.max(hs*mask_s + (1.0-mask_s)*float('-Inf'), dim=1)
+            print(s)
             t, _ = torch.max(ht*mask_t + (1.0-mask_t)*float('-Inf'), dim=1)
             loss = self.criterion(s, t, y)
 
