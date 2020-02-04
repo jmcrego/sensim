@@ -8,7 +8,8 @@ from shutil import copyfile
 from src.tools import create_logger
 from src.dataset import Vocab, DataSet, OpenNMTTokenizer
 from src.model import make_model
-from src.trainer import Trainer, Inference
+from src.trainer import Trainer
+from src.infer import Infer
 
 '''
 from src.optim import sequence_mask, st_mask
@@ -139,11 +140,11 @@ if __name__ == "__main__":
         logging.debug('Read config : {}'.format(opts.cfg))
 
     if opts.finfer is not None:
-        with open(opts.finfer) as file:
-            opts.test = yaml.load(file, Loader=yaml.FullLoader)
-            logging.debug('Read config for inference : {}'.format(opts.test))
-        inference = Inference(opts)
-        inference()
+        #with open(opts.finfer) as file:
+        #    opts.test = yaml.load(file, Loader=yaml.FullLoader)
+        #    logging.debug('Read config for inference : {}'.format(opts.test))
+        infer = Infer(opts)
+#        infer(opts.finfer, 'mean')
     else:
         with open(opts.flearn) as file:
             opts.train = yaml.load(file, Loader=yaml.FullLoader)
