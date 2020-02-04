@@ -45,12 +45,15 @@ class stats():
         self.sum_loss += batch_loss
         self.n_preds += n_predicted
 
-    def report(self,n_steps,step,trn_val_tst):
-        torch.cuda.empty_cache()
-        Gb_reserved = torch.cuda.memory_reserved(device=torch.cuda.current_device()) / 1073741824
-        Gb_used = torch.cuda.get_device_properties(device=torch.cuda.current_device()).total_memory / 1073741824
+    def report(self,n_steps,step,trn_val_tst,cuda):
+        if cuda:
+            torch.cuda.empty_cache()
+            device = torch.cuda.current_device()
+            Gb_reserved = torch.cuda.memory_reserved(device=device) / 1073741824
+            Gb_used = torch.cuda.get_device_properties(device=device).total_memory / 1073741824
 
-        logging.info("{} step: {} ({}) Loss: {:.4f} Pred/sec: {:.1f} [GPU:{:.3f}Gb]".format(trn_val_tst, n_steps, step, self.sum_loss/self.n_preds, self.n_preds/(time.time()-self.start), Gb_used))
+        logging.info("{} step: {} ({}) Loss: {:.4f} Pred/sec: {:.1f} [{}:{:.3f}Gb]".format(trn_val_tst, n_steps, step, self.sum_loss/self.n_preds, self.n_preds/(time.time()-self.start), torch.cuda.current_device(),Gb_used))
+        logging.info('{}'.format(torch.cuda.memory_summary(device=device, abbreviated=False)))
         self.n_preds = 0
         self.sum_loss = 0.0
         self.start = time.time()
@@ -171,7 +174,7 @@ class Trainer():
             ### report
             ###
             if self.report_every_steps > 0 and self.n_steps_so_far % self.report_every_steps == 0:
-                ts.report(self.n_steps_so_far,step,'Train')
+                ts.report(self.n_steps_so_far,step,'Train',self.cuda)
             ###
             ### saved
             ###
@@ -215,7 +218,7 @@ class Trainer():
                     h2 = self.model.forward(x2,x2_mask)
                     batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
                 ds.add_batch(batch_loss,n_predictions)
-        ds.report(self.n_steps_so_far,step,'Valid')
+        ds.report(self.n_steps_so_far,step,'Valid',self.cuda)
         logging.info('End validation')
 
 
