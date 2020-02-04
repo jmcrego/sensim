@@ -119,6 +119,8 @@ class Infer():
                     print(' '.join([str(tok) for tok in sentence]))
                 elif len(src_tgt)>1:
                     s = s.cpu()
+                    print(s.shape)
+                    sys.exit()
                     t = t.cpu()
                     sim = np.sum((s/np.linalg.norm(s)) * (t/np.linalg.norm(t))) 
                     print(sim)
