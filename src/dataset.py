@@ -244,10 +244,10 @@ class DataSet():
         self.max_length = max_length
         self.batch_size = batch_size
         self.steps = steps
-        self.do_sim = self.steps['sim']['run']
+        self.sim_run = self.steps['sim']['run']
         self.p_uneven = self.steps['sim']['p_uneven']
         self.swap_bitext = swap_bitext
-        logging.info('reading dataset [swap:{},batch_size:{},max_length:{},do_sim:{},allow_shuffle:{},valid_test:{}]'.format(swap_bitext,batch_size,max_length,self.do_sim,allow_shuffle,valid_test))
+        logging.info('reading dataset [swap:{},batch_size:{},max_length:{},sim_run:{},allow_shuffle:{},valid_test:{}]'.format(swap_bitext,batch_size,max_length,self.sim_run,allow_shuffle,valid_test))
         ##################
         ### read files ###
         ##################
@@ -256,7 +256,7 @@ class DataSet():
         for i in range(len(files)):
             if len(files[i])==1: ############# single file ##########################################
                 fsrc = files[i][0]
-                if self.do_sim: ### skip when fine-tuning on similarity
+                if self.sim_run: ### skip when fine-tuning on similarity
                     logging.info('skip single file: {}'.format(fsrc))
                     continue
                 if fsrc.endswith('.gz'): fs = gzip.open(fsrc, 'rb')
@@ -308,7 +308,7 @@ class DataSet():
             index = indexs[i]
             src = self.data[index][0]
             idx_src = [vocab[s] for s in src]
-            if self.do_sim: ### fine tunning (SIM) 
+            if self.sim_run: ### fine tunning (SIM) 
                 if random.random() < self.p_uneven and i > 0:
                     isParallel = -1.0 ### NOT parallel
                     index = indexs[i-1]
