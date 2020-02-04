@@ -155,9 +155,8 @@ class ComputeLossSIM:
             logging.info('1-mask_s[0] {}'.format( (1.0-mask_s[0])*float('-Inf') ))
             sys.exit()
 
-            s, _ = torch.max(hs*mask_s + (1.0-mask_s)*float('-Inf'), dim=1)
-            logging.info('s {}'.format(s))
-            t, _ = torch.max(ht*mask_t + (1.0-mask_t)*float('-Inf'), dim=1)
+            s, _ = torch.max(hs*mask_s + (1.0-mask_s)*float('-999.0'), dim=1)
+            t, _ = torch.max(ht*mask_t + (1.0-mask_t)*float('-999.0'), dim=1)
             loss = self.criterion(s, t, y)
 
         elif self.pooling == 'mean':
