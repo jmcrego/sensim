@@ -71,7 +71,7 @@ class LabelSmoothing(nn.Module):
         true_dist.fill_(self.smoothing / (self.size - 2)) #true_dist is filled with value=smoothing/(size-2)
         true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence) #moves value=confidence to tensor true_dist and indiceds target_data dim=1
         true_dist[:, self.padding_idx] = 0 #prob mass on padding_idx is 0
-        mask = torch.nonzero(target.data == self.padding_idx)
+        mask = torch.nonzero(target.data == self.padding_idx, device=x.device)
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         #self.true_dist = true_dist
