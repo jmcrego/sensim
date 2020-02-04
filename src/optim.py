@@ -71,7 +71,7 @@ class LabelSmoothing(nn.Module):
         true_dist.fill_(self.smoothing / (self.size - 2)) #true_dist is filled with value=smoothing/(size-2)
         true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence) #moves value=confidence to tensor true_dist and indiceds target_data dim=1
         true_dist[:, self.padding_idx] = 0 #prob mass on padding_idx is 0
-        mask = torch.nonzero(target.data == self.padding_idx, device=x.device)
+        mask = torch.nonzero(target.data == self.padding_idx) # device=x.device ???
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         #self.true_dist = true_dist
@@ -155,11 +155,8 @@ class ComputeLossSIM:
 
         elif self.pooling == 'align':
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
-            exp_rS = torch.exp(S_st * self.R)
-            #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
-            sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
-            log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
-            loss = self.criterion(log_sum_exp_rS_div_R,y,mask_t.squeeze())
+            aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
+            loss = self.criterion(aggr_t,y,mask_t.squeeze())
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
@@ -167,13 +164,11 @@ class ComputeLossSIM:
 
         return loss #not normalized
 
-'''
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
         exp_rS = torch.exp(S_st * self.R)
         sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
         log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
         return log_sum_exp_rS_div_R
-'''
 
 
 
