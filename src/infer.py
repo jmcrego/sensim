@@ -8,6 +8,7 @@ import random
 import sys
 import glob
 import os
+import pyonmttok
 from collections import defaultdict
 from torch import nn
 from torch.nn import functional as F
