@@ -70,9 +70,9 @@ class Infer():
                 x = torch.from_numpy(batch_src) #[batch_size, max_len] the original words with padding
                 x_mask = torch.as_tensor((x != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
                 mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2))
-                print(x)
-                print(x_mask)
-                print(mask_s)
+                print('x',x.size())
+                print('x_mask',x_mask.size())
+                print('mask_s',mask_s.size())
 
                 if self.cuda:
                     x = x.cuda()
