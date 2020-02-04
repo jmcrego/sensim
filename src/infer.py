@@ -90,9 +90,9 @@ class Infer():
                 elif pooling == 'cls':
                     s = h[:, 0, :] # take embedding of first token <cls>
 
-                sentence = torch.Tensor.cpu(s).detach().numpy()
-                print(sentence.shape)
-#                print(' '.join([str(f) for f in sentence]))
+                sentence = torch.Tensor.cpu(s).detach().numpy()[0]
+#                print(sentence.shape)
+                print(' '.join([str(tok) for tok in sentence]))
 
         logging.info('End validation')
 
