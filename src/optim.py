@@ -111,7 +111,7 @@ class AlignSIM(nn.Module):
         #print('sum_error',sum_error[0])
         acc_num = aggr * -sign
         acc_den = mask_t.sum()
-        logging.info('Acc={}/{}'.format(acc[acc<0].sum(),acc_den))
+        logging.info('Acc={}/{}'.format(acc_num[acc_num<0].sum(),acc_den))
         return torch.sum(sum_error) #total loss of this batch (not normalized)
 
 
