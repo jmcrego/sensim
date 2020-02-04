@@ -96,7 +96,7 @@ class Trainer():
         self.load_checkpoint() #loads if exists
 
         if self.steps['sim']['run']:
-            self.computeloss = ComputeLossSIM(self.criterion, self.steps['sim']['pooling'], self.steps['sim']['R'], self.optimizer)
+            self.computeloss = ComputeLossSIM(self.criterion, self.steps['sim']['pooling'], self.steps['sim']['R'], self.steps['sim']['align_scale'], self.optimizer)
         else:
             self.computeloss = ComputeLossMLM(self.model.generator, self.criterion, self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
