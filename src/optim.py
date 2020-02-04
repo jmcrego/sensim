@@ -170,7 +170,7 @@ class ComputeLossSIM:
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
         #print('S_st',S_st[0])
         #print('mask_s',mask_s[0])
-        exp_rS = torch.exp(S_st * self.R * 0.01)
+        exp_rS = torch.exp(S_st * self.R)
         #print('exp_rS',exp_rS[0])
         sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
         #print('sum_exp_rS',sum_exp_rS[0])
