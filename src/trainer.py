@@ -165,7 +165,7 @@ class Trainer():
             ### report
             ###
             if self.report_every_steps > 0 and self.n_steps_so_far % self.report_every_steps == 0:
-                ts.report(self.n_steps_so_far,step,'Train',self.cuda)
+                ts.report(self.n_steps_so_far,step,'[Train]',self.cuda)
             ###
             ### saved
             ###
@@ -187,7 +187,6 @@ class Trainer():
 
 
     def validation(self):
-        logging.info('Start validation')
         ds = stats()
         with torch.no_grad():
             self.model.eval() ### avoids dropout
@@ -209,8 +208,7 @@ class Trainer():
                     h2 = self.model.forward(x2,x2_mask)
                     batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
                 ds.add_batch(batch_loss,n_predictions)
-        ds.report(self.n_steps_so_far,step,'Valid',self.cuda)
-        logging.info('End validation')
+        ds.report(self.n_steps_so_far,step,'[Valid]',self.cuda)
 
 
     def mlm_batch_cuda(self, batch):
@@ -267,7 +265,7 @@ class Trainer():
         x2_mask = torch.as_tensor((batch_tgt != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
         l2 = torch.from_numpy(batch_tgt_len) #[bs]
 
-        mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2)) 
+        mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2))
         mask_t = torch.from_numpy(sequence_mask(batch_tgt_len,mask_n_initials=2)) 
 
         y = torch.as_tensor(y)
