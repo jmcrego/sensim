@@ -70,9 +70,9 @@ class Infer():
                 x = torch.from_numpy(batch_src) #[batch_size, max_len] the original words with padding
                 x_mask = torch.as_tensor((x != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
                 mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2))
-                print('x',x.size())
-                print('x_mask',x_mask.size())
-                print('mask_s',mask_s.size())
+                #print('x',x.size())
+                #print('x_mask',x_mask.size())
+                #print('mask_s',mask_s.size())
 
                 if self.cuda:
                     x = x.cuda()
@@ -80,7 +80,7 @@ class Infer():
                     mask_s = mask_s.cuda()
 
                 h = self.model.forward(x,x_mask)
-                print('h',h.size())
+                #print('h',h.size())
 
                 mask_s = mask_s.unsqueeze(-1).type(torch.float64)
                 if pooling == 'max':
@@ -89,7 +89,7 @@ class Infer():
                     s = torch.sum(h * mask_s, dim=1) / torch.sum(mask_s, dim=1)
                 elif pooling == 'cls':
                     s = h[:, 0, :] # take embedding of first token <cls>
-                print(s)
+                print(' '.join([str(f) for f in s])
 
         logging.info('End validation')
 
