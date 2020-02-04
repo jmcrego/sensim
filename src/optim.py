@@ -98,7 +98,7 @@ class AlignSIM(nn.Module):
         error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
         print('error',error[0])
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
-        print('sum_error',sum_error[0])
+        print('sum_error',sum_error)
         return torch.sum(sum_error) #total loss of this batch (not normalized)
 
 
