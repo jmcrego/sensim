@@ -118,10 +118,8 @@ class Infer():
                     sentence = torch.Tensor.cpu(s).detach().numpy()[0]
                     print(' '.join([str(tok) for tok in sentence]))
                 elif len(src_tgt)>1:
-                    s = s.cpu()
-                    print(s.shape)
-                    sys.exit()
-                    t = t.cpu()
+                    s = s[0].cpu()
+                    t = t[0].cpu()
                     sim = np.sum((s/np.linalg.norm(s)) * (t/np.linalg.norm(t))) 
                     print(sim)
 
