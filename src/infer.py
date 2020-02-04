@@ -63,9 +63,13 @@ class Infer():
                 idx_src.insert(0,self.vocab.idx_bos)
                 idx_src.append(self.vocab.idx_eos)
                 idx_src.insert(0,self.vocab.idx_cls)
-                x = torch.from_numpy([idx_src]) #[batch_size, max_len] the original words with padding
+
+                batch_src = np.array([idx_src])
+                batch_src_len = np.array([len(idx_src)])
+
+                x = torch.from_numpy(batch_src) #[batch_size, max_len] the original words with padding
                 x_mask = torch.as_tensor((x != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]
-                mask_s = torch.from_numpy(sequence_mask([len(idx_src)],mask_n_initials=2))
+                mask_s = torch.from_numpy(sequence_mask(batch_src_len,mask_n_initials=2))
 
                 if self.cuda:
                     x.cuda()
