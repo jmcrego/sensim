@@ -105,7 +105,7 @@ class AlignSIM(nn.Module):
         # <<0     +1       <<0        ~0
         ##read like: when aggr >> 0 (target related to source) and sign is -1 (parallel) the loss is very small 
         #i change the sign sine i used -1 (uneven) +1 (parallel)
-        error = torch.log(1.0 + torch.exp(aggr * -sign)) #equation (3) error of each tgt word (same sign => big error, diff sign => small error)
+        error = torch.log(1.0 + torch.exp(aggr * -sign)) #equation (3) error of each tgt word
         #print('error',error[0])
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
         #print('sum_error',sum_error[0])

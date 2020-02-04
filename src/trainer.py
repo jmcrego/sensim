@@ -24,17 +24,6 @@ def sequence_mask(lengths, mask_n_initials=0):
         mask &= (msk > mask_n_initials)
     return mask.T #[bs,l]
 
-def st_mask(slen,tlen,mask_n_initials=0):
-    bs = len(slen)
-    ls = slen.max()
-    lt = tlen.max()
-    msk = np.zeros([bs,ls,lt], dtype=bool)
-    for b in range(bs):
-        for s in range(mask_n_initials,slen[b]-1):  ### i use slen[b]-1 because the last unpadded word is <eos> and i want it masked too
-            msk[b,s,mask_n_initials:tlen[b]-1] = True  ### i use tlen[b]-1 because the last unpadded word is <eos> and i want it masked too
-    #print('st_mask',msk)
-    return msk
-
 class stats():
     def __init__(self):
         self.n_preds = 0
@@ -57,6 +46,65 @@ class stats():
         self.n_preds = 0
         self.sum_loss = 0.0
         self.start = time.time()
+
+class Inference():
+
+    def __init__(self, opts):
+        self.dir = opts.dir
+        self.vocab = Vocab(opts.cfg['vocab'])
+        self.cuda = opts.cfg['cuda']
+        V = len(self.vocab)
+        N = opts.cfg['num_layers']
+        d_model = opts.cfg['hidden_size']
+        d_ff = opts.cfg['feedforward_size']
+        h = opts.cfg['num_heads']
+        dropout = opts.cfg['dropout']
+        self.token = OpenNMTTokenizer(**opts.cfg['token'])
+
+        self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
+        if self.cuda:
+            self.model.cuda()
+
+        self.load_checkpoint() #loads if exists
+
+    def __call__(self, ftest):
+        logging.info('Start testing')
+        logging.info('read Test data')
+        self.data_test = DataSet(self.steps,ftest,self.token,self.vocab,opts.train['batch_size'][1],max_length=0,swap_bitext=False,allow_shuffle=False,valid_test=True)
+        self.model.eval()
+        with torch.no_grad():
+            self.model.eval() ### avoids dropout
+            for batch in self.data_test:
+                if not self.steps['sim']['run']: ### pre-training (MLM)
+                    step = 'mlm'
+                    x, x_mask, y_mask = self.mlm_batch_cuda(batch)
+                    n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
+                    if n_predictions == 0: #nothing to predict
+                        logging.info('batch with nothing to predict')
+                        continue
+                    h = self.model.forward(x,x_mask)
+                else: ### fine-tunning (SIM)
+                    step = 'sim'
+                    x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
+                    n_predictions = x1.size(0)
+                    h1 = self.model.forward(x1,x1_mask)
+                    h2 = self.model.forward(x2,x2_mask)
+
+                    if self.pooling == 'max':
+                        s, _ = torch.max(hs*mask_s + (1.0-mask_s)*-999.9, dim=1) #-999.9 should be -Inf but it produces an nan when multiplied by 0.0
+                        t, _ = torch.max(ht*mask_t + (1.0-mask_t)*-999.9, dim=1) 
+
+                    elif self.pooling == 'mean':
+                        s = torch.sum(hs * mask_s, dim=1) / torch.sum(mask_s, dim=1)
+                        t = torch.sum(ht * mask_t, dim=1) / torch.sum(mask_t, dim=1)
+
+                    elif self.pooling == 'cls':
+                        s = hs[:, 0, :] # take embedding of first token <cls>
+                        t = ht[:, 0, :] # take embedding of first token <cls>
+
+                    print(y,torch.nn.CosineSimilarity(s,t,dim=1))
+        logging.info('End validation')
+
 
 class Trainer():
 
