@@ -156,6 +156,8 @@ class ComputeLossSIM:
         elif self.pooling == 'align':
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
             aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
+            print(aggr_t[0])
+            sys.exit()
             loss = self.criterion(aggr_t,y,mask_t.squeeze())
 
         else:
