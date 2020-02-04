@@ -95,12 +95,12 @@ class AlignSIM(nn.Module):
         
     def forward(self, aggr, y, mask_t):
         sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[b,lt] (by default ones builds on CPU)
-        print('sign',sign[0])
-        print('aggr',aggr[0])
-        error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
-        print('error',error[0])
+        #print('sign',sign[0])
+        #print('aggr',aggr[0])
+        error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word (same sign => big error, diff sign => small error)
+        #print('error',error[0])
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
-        print('sum_error',sum_error[0])
+        #print('sum_error',sum_error[0])
         return torch.sum(sum_error) #total loss of this batch (not normalized)
 
 
