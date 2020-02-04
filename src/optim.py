@@ -110,7 +110,7 @@ class AlignSIM(nn.Module):
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
         #print('sum_error',sum_error[0])
         acc = aggr * -sign
-        print('acc',acc)
+        logging.info('acc={}'.format(acc))
         return torch.sum(sum_error) #total loss of this batch (not normalized)
 
 
