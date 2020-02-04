@@ -78,17 +78,6 @@ class LabelSmoothing(nn.Module):
         return self.criterion(x, true_dist) #total loss of this batch (not normalized)
 
 
-class CrossEntropy(nn.Module):
-    def __init__(self,padding_idx):
-        super(CrossEntropy, self).__init__()
-        self.padding_idx = padding_idx
-        self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=padding_idx, reduction='sum')
-        logging.info('built criterion (CrossEntropy)')
-        
-    def forward(self, x, target): 
-        return self.criterion(x, target) #total loss of this batch (not normalized)
-
-
 class CosineSIM(nn.Module):
     def __init__(self, margin=0.0):
         super(CosineSIM, self).__init__()
@@ -105,7 +94,7 @@ class AlignSIM(nn.Module):
         logging.info('built criterion (align)')
         
     def forward(self, aggr, y, mask_t):
-        sign = torch.ones(aggr.size()) * y.unsqueeze(-1) #[b,lt]
+        sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[b,lt] (by default ones builds on CPU)
         error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
         return torch.sum(sum_error) #total loss of this batch (not normalized)
