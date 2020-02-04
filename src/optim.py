@@ -96,9 +96,9 @@ class AlignSIM(nn.Module):
     def forward(self, aggr, y, mask_t):
         sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[b,lt] (by default ones builds on CPU)
         error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
-        print('error',error[0])
+        print('error',error[1])
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
-        print('sum_error',sum_error)
+        print('sum_error',sum_error[1])
         return torch.sum(sum_error) #total loss of this batch (not normalized)
 
 
@@ -169,16 +169,16 @@ class ComputeLossSIM:
         return loss #not normalized
 
     def aggr(self,S_st,mask_s): #foreach tgt word finds the aggregation over all src words
-        print('S_st',S_st[0])
+        print('S_st',S_st[1])
         #print('mask_s',mask_s[0])
         S_st_limited = torch.min(S_st, (torch.ones(S_st.size(), device=S_st.device)*9.9))
-        print('S_st_limited',S_st_limited[0])
+        print('S_st_limited',S_st_limited[1])
         exp_rS = torch.exp(S_st_limited * self.R)  ### attention!!! exp(large number) = nan
-        print('exp_rS',exp_rS[0])
+        print('exp_rS',exp_rS[1])
         sum_exp_rS = torch.sum(exp_rS * mask_s,dim=1) #sum over all source words (source words nor used are masked)
-        print('sum_exp_rS',sum_exp_rS[0])
+        print('sum_exp_rS',sum_exp_rS[1])
         log_sum_exp_rS_div_R = torch.log(sum_exp_rS) / self.R
-        print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R[0])
+        print('log_sum_exp_rS_div_R',log_sum_exp_rS_div_R[1])
         return log_sum_exp_rS_div_R
 
 
