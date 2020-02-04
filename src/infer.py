@@ -119,7 +119,7 @@ class Infer():
                     print(' '.join([str(tok) for tok in sentence]))
                 elif len(src_tgt)>1:
                     sim = cos(s,t)
-                    print(sim[0])
+                    print(sim[0].data)
 
         logging.info('End validation')
 
