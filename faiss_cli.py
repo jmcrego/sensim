@@ -74,8 +74,8 @@ class IndexFaiss:
 				if i in I[i,0:j+1]:
 					n_ok[j] += 1.0
 
-#		n_ok = ["{:.3f}".format(n/len(x)) for n in n_ok]
-		print('Done k-best Acc = [{}] over {} examples'.format(n_ok),len(x)))
+		n_ok = ["{:.3f}".format(n/len(x)) for n in n_ok]
+		print('Done k-best Acc = [{}] over {} examples'.format(n_ok,len(x)))
 
 if __name__ == '__main__':
 
