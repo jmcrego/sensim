@@ -22,7 +22,7 @@ def IndexDB(file, d):
 	print(index.ntotal)
 	return index
 
-def Query(index,file,k)
+def Query(index,file,k):
 	return
 	D, I = index.search(xb[:5], k) # sanity check
 	print(I)
