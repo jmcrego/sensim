@@ -43,7 +43,7 @@ if __name__ == '__main__':
       sys.exit()
     elif tok=="-v":
       verbose = True
-    elif tok=="-dbc" and len(sys.argv):
+    elif tok=="-db" and len(sys.argv):
       fdb = sys.argv.pop(0)
     elif tok=="-query" and len(sys.argv):
       fquery = sys.argv.pop(0)
