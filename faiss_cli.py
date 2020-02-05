@@ -70,7 +70,7 @@ class IndexFaiss:
 			if len(self.db_str):
 				out.append(self.db_str[I[i]])
 			print('\t'.join(out))
-			if i==I[0]:
+			if i==I[i,0]:
 				n_ok += 1
 
 		print('Done Acc={:.2f} over {} examples'.format(1.0*n_ok/len(x),len(s)))
