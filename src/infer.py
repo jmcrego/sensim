@@ -52,16 +52,23 @@ class Infer():
 
     def __call__(self, file):
         logging.info('Start testing')
-        if file.endswith('.gz'): f = gzip.open(file, 'rb')
-        else: f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
+        files = file.split(',')
+
+        fsrc = files[0]
+        if fsrc.endswith('.gz'): fs = gzip.open(fsrc, 'rb')
+        else: fs = io.open(fsrc, 'r', encoding='utf-8', newline='\n', errors='ignore')
+
+        if len(files)>1:
+            ftgt = files[1]
+            if ftgt.endswith('.gz'): ft = gzip.open(ftgt, 'rb')
+            else: ft = io.open(ftgt, 'r', encoding='utf-8', newline='\n', errors='ignore')
+
         cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         self.data = []
         self.model.eval()
         with torch.no_grad():
-            for l in f:
-                src_tgt = l.split('\t')
+            for lsrc in fsrc:
 
-                lsrc = src_tgt[0]
                 src = [s for s in self.token.tokenize(lsrc)]
                 idx_src = [self.vocab[s] for s in src]
                 idx_src.insert(0,self.vocab.idx_bos)
@@ -79,8 +86,8 @@ class Infer():
                 h1 = self.model.forward(x1,x1_mask)
                 mask_s = mask_s.unsqueeze(-1).type(torch.float64)
 
-                if len(src_tgt)>1:
-                    ltgt = src_tgt[1]
+                if len(files)>1:
+                    ltgt = ftgt.readline()
                     tgt = [t for t in self.token.tokenize(ltgt)]
                     idx_tgt = [self.vocab[t] for t in tgt]
                     idx_tgt.insert(0,self.vocab.idx_bos)
@@ -98,10 +105,6 @@ class Infer():
                     h2 = self.model.forward(x2,x2_mask)
                     mask_t = mask_t.unsqueeze(-1).type(torch.float64)
 
-            ### build batches
-
-            ### traverse batches
-
             
                 if self.pooling == 'max':
                     s, _ = torch.max(h1*mask_s + (1.0-mask_s)*-999.9, dim=1) #-999.9 should be -Inf but it produces an nan when multiplied by 0.0
@@ -118,10 +121,10 @@ class Infer():
                 else:
                     logging.error('bad pooling method: {}'.format(self.pooling))
 
-                if len(src_tgt)==1:
+                if len(files)==1:
                     sentence = torch.Tensor.cpu(s).detach().numpy()[0]
                     print(' '.join([str(tok) for tok in sentence]))
-                elif len(src_tgt)>1:
+                elif len(files)>1:
                     sim = cos(s,t)
                     print(torch.Tensor.cpu(sim).detach().numpy()[0])
 
