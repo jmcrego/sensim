@@ -30,17 +30,18 @@ def Query(index,file,d,k):
 	else:
 		f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
+	db = []
 	for l in f:
 		l = l.rstrip().split(' ')
 		if len(l) != d:
 			logging.error('found {} floats instead of {}'.format(len(l),d))
 			sys.exit()
+		db.append(l)
 
-	x = np.array(l).astype('float32')
+	x = np.array(db).astype('float32')
 	D, I = index.search(x, k)
-	print(I)
-	print(D)
-	sys.exit()
+	print(I[0])
+	print(D[0])
 
 
 if __name__ == '__main__':
