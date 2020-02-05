@@ -67,7 +67,7 @@ class Infer():
         self.data = []
         self.model.eval()
         with torch.no_grad():
-            for lsrc in fsrc:
+            for lsrc in fs:
 
                 src = [s for s in self.token.tokenize(lsrc)]
                 idx_src = [self.vocab[s] for s in src]
@@ -87,7 +87,7 @@ class Infer():
                 mask_s = mask_s.unsqueeze(-1).type(torch.float64)
 
                 if len(files)>1:
-                    ltgt = ftgt.readline()
+                    ltgt = ft.readline()
                     tgt = [t for t in self.token.tokenize(ltgt)]
                     idx_tgt = [self.vocab[t] for t in tgt]
                     idx_tgt.insert(0,self.vocab.idx_bos)
