@@ -58,7 +58,7 @@ class IndexFaiss:
 			for l in f:
 				query_str.append(l.rstrip())
 
-		x = np.array(db).astype('float32')
+		x = np.array(query).astype('float32')
 		D, I = index.search(x, k)
 		for i in range(len(I)):
 			out = []
