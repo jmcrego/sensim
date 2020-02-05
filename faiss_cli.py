@@ -59,7 +59,7 @@ class IndexFaiss:
 				query_str.append(l.rstrip())
 
 		x = np.array(query).astype('float32')
-		D, I = index.search(x, k)
+		D, I = self.index.search(x, k)
 		for i in range(len(I)):
 			out = []
 			out.append(str(i))
