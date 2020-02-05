@@ -58,7 +58,7 @@ class IndexFaiss:
 			for l in f:
 				query_str.append(l.rstrip())
 
-		n_ok = [0] * k
+		n_ok = [0.0] * k
 		x = np.array(query).astype('float32')
 		D, I = self.index.search(x, k)
 		for i in range(len(I)):
@@ -75,7 +75,7 @@ class IndexFaiss:
 				if i in n_ok[0:j+1]:
 					n_ok[j] += 1
 
-		n_ok = n_ok.astype('float32') / len(x).astype('float32')
+		n_ok = n_ok / len(x)
 		print('Done Acc = [{}] over {} examples'.format(' '.join(["{:.3f}".format(a) for a in n_ok]),len(x)))
 
 if __name__ == '__main__':
