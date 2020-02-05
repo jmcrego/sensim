@@ -41,7 +41,8 @@ def Query(index,file,d,k):
 	x = np.array(db).astype('float32')
 	D, I = index.search(x, k)
 	for i in range(len(D)):
-		print("{}\t{}\t{}".format(i,I[i,0],D[i,0]))
+		#print("{}\t{}\t{}".format(i,I[i,0],D[i,0]))
+		print("{}\t{}".format(i,I[i]))
 
 
 if __name__ == '__main__':
