@@ -68,7 +68,7 @@ class IndexFaiss:
 			if len(query_str):
 				out.append(query_str[i])
 			if len(self.db_str):
-				out.append(self.db_str[I[i]])
+				out.append(self.db_str[I[i,0]])
 			print('\t'.join(out))
 			for j in range(k):
 				if i in I[i,0:j+1]:
