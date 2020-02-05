@@ -19,6 +19,7 @@ def IndexDB(file, d):
 
 	index = faiss.IndexFlatL2(d)  		# build the index
 	db = np.array(db,dtype=float)
+	print(db.shape)
 	index.add(db) # add vectors to the index
 	print(index.ntotal)
 	return index
