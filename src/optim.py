@@ -110,7 +110,8 @@ class AlignSIM(nn.Module):
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
         #print('sum_error',sum_error[0])
 
-        #n_ok = ( (aggr * -sign * mask_t) < 0.0).sum()
+        #n_ok = ((aggr * -sign * mask_t) < 0.0).sum()
+        #n = mask_t.sum()
         #logging.info('Acc={:.2f}'.format(acc))
         return torch.sum(sum_error) #total loss of this batch (not normalized)
 
@@ -170,14 +171,9 @@ class ComputeLossSIM:
             loss = self.criterion(s, t, y)
 
         elif self.pooling == 'align':
-#            print('hs',hs[0])
-#            print('ht',ht[0])
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) * self.align_scale #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
-#            print('S_st',S_st[0])
             aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
             loss = self.criterion(aggr_t,y,mask_t.squeeze())
-#            print('loss',loss)
-#            sys.exit()
 
         else:
             logging.error('bad pooling method {}'.format(self.pooling))
