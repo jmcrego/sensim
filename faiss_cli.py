@@ -71,7 +71,8 @@ class IndexFaiss:
 				out.append(self.db_str[I[i]])
 			print('\t'.join(out))
 			for j in range(k):
-				if i in len[0:j+1]:
+#				if np.isin(element, test_elements).sum()
+				if i in n_ok[0:j+1]:
 					n_ok[j] += 1
 
 		n_ok = 1.0 * n_ok / len(x)
