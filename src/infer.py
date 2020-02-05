@@ -126,5 +126,3 @@ class Infer():
                     print(torch.Tensor.cpu(sim).detach().numpy()[0])
 
         logging.info('End testing')
-
-

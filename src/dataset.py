@@ -9,7 +9,7 @@ import numpy as np
 import json
 import six
 import random
-from torch.nn.utils.rnn import pad_sequence
+#from torch.nn.utils.rnn import pad_sequence
 from random import shuffle
 from collections import defaultdict
 
@@ -237,9 +237,9 @@ class batch():
 
 class DataSet():
 
-    def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0,swap_bitext=False, allow_shuffle=False, valid_test=False):
+    def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0,swap_bitext=False, allow_shuffle=False, infinite=False):
         self.allow_shuffle = allow_shuffle
-        self.valid_test = valid_test
+        self.infinite = infinite
 
         self.max_length = max_length
         self.batch_size = batch_size
@@ -247,7 +247,7 @@ class DataSet():
         self.sim_run = self.steps['sim']['run']
         self.p_uneven = self.steps['sim']['p_uneven']
         self.swap_bitext = swap_bitext
-        logging.info('reading dataset [swap:{},batch_size:{},max_length:{},sim_run:{},allow_shuffle:{},valid_test:{}]'.format(swap_bitext,batch_size,max_length,self.sim_run,allow_shuffle,valid_test))
+        logging.info('reading dataset [swap:{},batch_size:{},max_length:{},sim_run:{},allow_shuffle:{},infinite:{}]'.format(swap_bitext,batch_size,max_length,self.sim_run,allow_shuffle,infinite))
         ##################
         ### read files ###
         ##################
@@ -266,7 +266,7 @@ class DataSet():
                 for ls in fs:
                     n += 1
                     src = [s for s in token.tokenize(ls)]
-                    if not self.valid_test and self.max_length > 0 and len(src) > self.max_length: 
+                    if self.max_length > 0 and len(src) > self.max_length: 
                         continue
                     m += 1
                     self.data.append([src,[]]) ### [s1, s2, ..., sn], [t1, t2, ..., tn]
@@ -285,7 +285,7 @@ class DataSet():
                     n += 1
                     src = [s for s in token.tokenize(ls)]
                     tgt = [t for t in token.tokenize(lt)]
-                    if not self.valid_test and self.max_length > 0 and len(src)+len(tgt) > self.max_length: 
+                    if self.max_length > 0 and len(src)+len(tgt) > self.max_length: 
                         continue
                     m += 1
                     self.data.append([src,tgt]) ### [s1, s2, ..., sn], [t1, t2, ..., tn]
@@ -343,7 +343,7 @@ class DataSet():
             for index in indexs:
                 yield self.batches[index]
 
-            if self.valid_test:
+            if not self.infinite:
                 break
 
 
