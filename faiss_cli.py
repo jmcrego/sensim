@@ -11,12 +11,12 @@ def IndexDB(file, d):
 
     for l in f:
     	x = l.split()
-        np.array(x,dtype=float)
         if len(x) != d:
             logging.error('found {} floats instead of {}'.format(len(x),d))
             sys.exit()
+        np.array(x,dtype=float)
 
-	index = faiss.IndexFlatL2(d)   # build the index
+	index = faiss.IndexFlatL2(d)  # build the index
   	index.add(x)                  # add vectors to the index
   	print(index.ntotal)
 
