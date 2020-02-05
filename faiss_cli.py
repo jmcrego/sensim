@@ -15,8 +15,6 @@ def IndexDB(file, d):
 			logging.error('found {} floats instead of {}'.format(len(x),d))
 			sys.exit()
 		np.array(x,dtype=float)
-		print(x)
-		sys.exit()
 
 	index = faiss.IndexFlatL2(d)  # build the index
 	index.add(x)                  # add vectors to the index
