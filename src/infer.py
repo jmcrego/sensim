@@ -98,7 +98,11 @@ class Infer():
                     h2 = self.model.forward(x2,x2_mask)
                     mask_t = mask_t.unsqueeze(-1).type(torch.float64)
 
+            ### build batches
 
+            ### traverse batches
+
+            
                 if self.pooling == 'max':
                     s, _ = torch.max(h1*mask_s + (1.0-mask_s)*-999.9, dim=1) #-999.9 should be -Inf but it produces an nan when multiplied by 0.0
                     if len(src_tgt)>1:
@@ -121,6 +125,6 @@ class Infer():
                     sim = cos(s,t)
                     print(torch.Tensor.cpu(sim).detach().numpy()[0])
 
-        logging.info('End validation')
+        logging.info('End testing')
 
 
