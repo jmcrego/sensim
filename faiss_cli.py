@@ -1,3 +1,4 @@
+import logging
 import sys
 import io
 import faiss
@@ -19,19 +20,27 @@ def IndexDB(file, d):
 
 	index = faiss.IndexFlatL2(d)  		# build the index
 	db = np.array(db).astype('float32')
-	print(db[0])
 	index.add(db) # add vectors to the index
-	print(index.ntotal)
+	logging.info("read {} vectors".format(index.ntotal))
 	return index
 
-def Query(index,file,k):
-	return
-	D, I = index.search(xb[:5], k) # sanity check
+def Query(index,file,d,k):
+	if file.endswith('.gz'): 
+		f = gzip.open(fsrc, 'rb')
+	else:
+		f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
+
+	for l in f:
+		l = l.rstrip().split(' ')
+		if len(l) != d:
+			logging.error('found {} floats instead of {}'.format(len(l),d))
+			sys.exit()
+
+	x = np.array(l).astype('float32')
+	D, I = index.search(x, k)
 	print(I)
 	print(D)
-	D, I = index.search(xq, k)     # actual search
-	print(I[:5])                   # neighbors of the 5 first queries
-	print(I[-5:])                  # neighbors of the 5 last queries
+	sys.exit()
 
 
 if __name__ == '__main__':
@@ -76,5 +85,5 @@ if __name__ == '__main__':
 		indexdb = IndexDB(fdb,d)
 
 	if fquery is not None:
-		Query(indexdb,fquery,k)
+		Query(indexdb,fquery,d,k)
 
