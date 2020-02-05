@@ -237,17 +237,16 @@ class batch():
 
 class DataSet():
 
-    def __init__(self, steps, files, token, vocab, batch_size=32, max_length=0,swap_bitext=False, allow_shuffle=False, infinite=False):
+    def __init__(self, steps, files, token, vocab, sim_run=False, batch_size=32, max_length=0, p_uneven=0.0, swap_bitext=False, allow_shuffle=False, is_infinite=False):
         self.allow_shuffle = allow_shuffle
-        self.infinite = infinite
-
+        self.is_infinite = is_infinite
         self.max_length = max_length
         self.batch_size = batch_size
         self.steps = steps
-        self.sim_run = self.steps['sim']['run']
-        self.p_uneven = self.steps['sim']['p_uneven']
+        self.sim_run = sim_run
+        self.p_uneven = p_uneven
         self.swap_bitext = swap_bitext
-        logging.info('reading dataset [swap:{},batch_size:{},max_length:{},sim_run:{},allow_shuffle:{},infinite:{}]'.format(swap_bitext,batch_size,max_length,self.sim_run,allow_shuffle,infinite))
+        logging.info('reading dataset [swap:{},batch_size:{},max_length:{},sim_run:{},allow_shuffle:{},is_infinite:{}]'.format(swap_bitext,batch_size,max_length,sim_run,allow_shuffle,is_infinite))
         ##################
         ### read files ###
         ##################
@@ -343,7 +342,7 @@ class DataSet():
             for index in indexs:
                 yield self.batches[index]
 
-            if not self.infinite:
+            if not self.is_infinite:
                 break
 
 

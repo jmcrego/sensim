@@ -16,13 +16,13 @@ class Argv():
 
     def __init__(self, argv):
         self.prog = argv.pop(0)
-        self.usage = '''usage: {} -dir DIR [-learn YAML] [-infer YAML] [-config YAML] [-seed INT] [-log FILE] [-loglevel LEVEL]
+        self.usage = '''usage: {} -dir DIR [-learn YAML] [-infer YAML] [-pooling STRING] [-config YAML] [-seed INT] [-log FILE] [-loglevel LEVEL]
    -dir        DIR : checkpoint directory (must not exist when learning from scratch)
    -infer     YAML : test config file (inference mode)
    -learn     YAML : train config file (learning mode)
    -config    YAML : modeling/optim config file (needed when learning from scratch)
 
-   -pooling STRING : inference pooling. Either: max, mean or cls (default mean)
+   -pooling STRING : inference pooling method, use 'max', 'mean' or 'cls' (default mean)
 
    -seed       INT : seed value (default 12345)
    -log       FILE : log file (default stderr)

@@ -74,6 +74,20 @@ class Trainer():
         beta1 = opts.cfg['beta1']
         beta2 = opts.cfg['beta2']
         eps = opts.cfg['eps']
+        self.sim_run = opts.steps['sim']['run']
+        batch_size = opts.train['batch_size']
+        max_length = opts.train['max_length']
+        p_uneven = opts.steps['sim']['p_uneven']
+        swap_bitext = opts.train['swap_bitext'] 
+        sim_pooling = self.steps['sim']['pooling']
+        R = self.steps['sim']['R']
+        align_scale = self.steps['sim']['align_scale']
+        self.p_mask = self.steps['mlm']['p_mask']
+        self.r_same = self.steps['mlm']['r_same']
+        self.r_rand = self.steps['mlm']['r_rand']
+        if 1.0 - r_same - r_rand <= 0.0:
+            logging.error('r_mask={} <= zero'.format(1.0 - self.r_same - self.r_rand))
+            sys.exit()
 
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         if self.cuda:
@@ -95,18 +109,19 @@ class Trainer():
 
         self.load_checkpoint() #loads if exists
 
-        if self.steps['sim']['run']:
-            self.computeloss = ComputeLossSIM(self.criterion, self.steps['sim']['pooling'], self.steps['sim']['R'], self.steps['sim']['align_scale'], self.optimizer)
+        if self.sim_run:
+            self.computeloss = ComputeLossSIM(self.criterion, sim_pooling, R, align_scale, self.optimizer)
         else:
             self.computeloss = ComputeLossMLM(self.model.generator, self.criterion, self.optimizer)
         token = OpenNMTTokenizer(**opts.cfg['token'])
 
+
         logging.info('read Train data')
-        self.data_train = DataSet(self.steps,opts.train['train'],token,self.vocab,opts.train['batch_size'][0],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=True,infinite=True)
+        self.data_train = DataSet(self.steps,opts.train['train'],token,self.vocab,sim_run=self.sim_run,batch_size=batch_size[0],max_length=max_length,p_uneven=p_uneven,swap_bitext=swap_bitext,allow_shuffle=True,is_infinite=True)
 
         if 'valid' in opts.train:
             logging.info('read Valid data')
-            self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,opts.train['batch_size'][1],max_length=opts.train['max_length'],swap_bitext=opts.train['swap_bitext'],allow_shuffle=True,infinite=False)
+            self.data_valid = DataSet(self.steps,opts.train['valid'],token,self.vocab,sim_run=self.sim_run,batch_size=batch_size[1],max_length=max_length,p_uneven=p_uneven,swap_bitext=swap_bitext,allow_shuffle=True,is_infinite=False)
         else: 
             self.data_valid = None
 
@@ -120,7 +135,7 @@ class Trainer():
             ###
             ### run step
             ###
-            if not self.steps['sim']['run']: ### pre-training (MLM)
+            if not self.sim_run: ### pre-training (MLM)
                 step = 'mlm'
                 x, x_mask, y_mask = self.mlm_batch_cuda(batch)
                 #x contains the true words in batch after masking some of them (<msk>, random, same)
@@ -191,7 +206,7 @@ class Trainer():
         with torch.no_grad():
             self.model.eval() ### avoids dropout
             for batch in self.data_valid:
-                if not self.steps['sim']['run']: ### pre-training (MLM)
+                if not self.sim_run: ### pre-training (MLM)
                     step = 'mlm'
                     x, x_mask, y_mask = self.mlm_batch_cuda(batch)
                     n_predictions = torch.sum((y_mask != self.vocab.idx_pad)).data
@@ -218,26 +233,17 @@ class Trainer():
         y_mask = torch.ones_like(x, dtype=torch.int64) #[batch_size, max_len]. will contain the original value of masked words in x. <pad> for the rest
         #y_mask = torch.from_numpy(batch) ## does not copy!!
 
-        p_mask = self.steps['mlm']['p_mask']
-        r_same = self.steps['mlm']['r_same']
-        r_rand = self.steps['mlm']['r_rand']
-        r_mask = 1.0 - r_same - r_rand
-
-        if r_mask <= 0.0:
-            logging.error('mask={} l<= zero'.format(mask))
-            sys.exit()
-
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
                 y_mask[i,j] = self.vocab.idx_pad ### all padded except those masked (to be predicted)
                 if not self.vocab.is_reserved(x[i,j]):
                     r = random.random()     # float in range [0.0, 1,0)
-                    if r < p_mask:          ### is masked
+                    if r < self.p_mask:          ### is masked
                         y_mask[i,j] = x[i,j]# use the original (true) word rather than <pad> 
                         q = random.random() # float in range [0.0, 1,0)
-                        if q < r_same:      # same
+                        if q < self.r_same:      # same
                             pass
-                        elif q < r_same+r_rand: # rand among all vocab words
+                        elif q < self.r_same+self.r_rand: # rand among all vocab words
                             x[i,j] = random.randint(7,len(self.vocab)-1) # int in range [7, |vocab|)
                         else:               # <msk>
                             x[i,j] = self.vocab.idx_msk
