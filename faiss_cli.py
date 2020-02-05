@@ -71,10 +71,10 @@ class IndexFaiss:
 				out.append(self.db_str[I[i]])
 			print('\t'.join(out))
 			for j in range(k):
-				if i in I[i][0:j+1]:
+				if i in I[i,0:j+1]:
 					n_ok[j] += 1.0
 
-		n_ok = ["{:.3f}".format(n/len(x)) for n in n_ok]
+#		n_ok = ["{:.3f}".format(n/len(x)) for n in n_ok]
 		print('Done k-best Acc = [{}] over {} examples'.format(n_ok),len(x)))
 
 if __name__ == '__main__':
