@@ -10,15 +10,26 @@ def IndexDB(file, d):
 		f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
 	for l in f:
-		x = l.rstrip().split(' ')
-		if len(x) != d:
-			logging.error('found {} floats instead of {}'.format(len(x),d))
+		l = l.rstrip().split(' ')
+		if len(l) != d:
+			logging.error('found {} floats instead of {}'.format(len(l),d))
 			sys.exit()
-		np.array(x,dtype=float)
+		np.array(l,dtype=float)
+		x.append(l)
 
 	index = faiss.IndexFlatL2(d)  # build the index
 	index.add(x)                  # add vectors to the index
 	print(index.ntotal)
+	return index
+
+def Query(index,file,k)
+	return
+	D, I = index.search(xb[:5], k) # sanity check
+	print(I)
+	print(D)
+	D, I = index.search(xq, k)     # actual search
+	print(I[:5])                   # neighbors of the 5 first queries
+	print(I[-5:])                  # neighbors of the 5 last queries
 
 
 if __name__ == '__main__':
