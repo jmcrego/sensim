@@ -9,16 +9,16 @@ def IndexDB(file, d):
 	else:
 		f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
+	db = []
 	for l in f:
 		l = l.rstrip().split(' ')
 		if len(l) != d:
 			logging.error('found {} floats instead of {}'.format(len(l),d))
 			sys.exit()
-		np.array(l,dtype=float)
-		x.append(l)
+		db.append(l)
 
-	index = faiss.IndexFlatL2(d)  # build the index
-	index.add(x)                  # add vectors to the index
+	index = faiss.IndexFlatL2(d)  		# build the index
+	index.add(np.array(db,dtype=float)) # add vectors to the index
 	print(index.ntotal)
 	return index
 
