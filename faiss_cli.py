@@ -10,6 +10,7 @@ def IndexDB(file, d):
   	f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
   for l in f:
+    x = l.split()
   	np.array(x,dtype=float)
   	if len(x) != d:
   		logging.error('found {} floats instead of {}'.format(len(x),d))
