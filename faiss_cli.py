@@ -4,7 +4,7 @@ import io
 import faiss
 import numpy as np
 
-class faiss_index:
+class IndexFaiss:
 
 	def __init__(self, file, d, file_str=None):
 		if file.endswith('.gz'): 
@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
 
 	if fdb is not None:
-		indexdb = IndexDB(fdb,d,fdb_str)
+		indexdb = IndexFaiss(fdb,d,fdb_str)
 
 	if fquery is not None:
 		indexdb.Query(fquery,d,k,fquery_str)
