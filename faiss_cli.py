@@ -4,62 +4,92 @@ import io
 import faiss
 import numpy as np
 
-def IndexDB(file, d):
-	if file.endswith('.gz'): 
-		f = gzip.open(fsrc, 'rb')
-	else:
-		f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
+class faiss_index:
 
-	db = []
-	for l in f:
-		l = l.rstrip().split(' ')
-		if len(l) != d:
-			logging.error('found {} floats instead of {}'.format(len(l),d))
-			sys.exit()
-		db.append(l)
+	def __init__(self, file, d, file_str=None):
+		if file.endswith('.gz'): 
+			f = gzip.open(file, 'rb')
+		else:
+			f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
-	index = faiss.IndexFlatIP(d)  		# build the index L2
-	db = np.array(db).astype('float32')
-	index.add(db) # add vectors to the index
-	logging.info("read {} vectors".format(index.ntotal))
-	return index
+		self.db = []
+		for l in f:
+			l = l.rstrip().split(' ')
+			if len(l) != d:
+				logging.error('found {} floats instead of {}'.format(len(l),d))
+				sys.exit()
+			self.db.append(l)
 
-def Query(index,file,d,k):
-	if file.endswith('.gz'): 
-		f = gzip.open(fsrc, 'rb')
-	else:
-		f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
+		self.db_str = []
+		if file_str is not None:
+			if file_str.endswith('.gz'): 
+				f = gzip.open(file_str, 'rb')
+			else:
+				f = io.open(file_str, 'r', encoding='utf-8', newline='\n', errors='ignore')
+			for l in f:
+				self.db_str.append(l.rstrip())
 
-	db = []
-	for l in f:
-		l = l.rstrip().split(' ')
-		if len(l) != d:
-			logging.error('found {} floats instead of {}'.format(len(l),d))
-			sys.exit()
-		db.append(l)
+		self.index = faiss.IndexFlatIP(d)  		# build the index L2
+		self.db = np.array(self.db).astype('float32')
+		self.index.add(self.db) # add vectors to the index
+		logging.info("read {} vectors".format(self.index.ntotal))
 
-	x = np.array(db).astype('float32')
-	D, I = index.search(x, k)
-	for i in range(len(D)):
-		#print("{}\t{}\t{}".format(i,I[i,0],D[i,0]))
-		print("{}\t{}".format(i,I[i]))
+
+	def Query(self,file,d,k,file_str):
+		if file.endswith('.gz'): 
+			f = gzip.open(fsrc, 'rb')
+		else:
+			f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
+
+		query = []
+		for l in f:
+			l = l.rstrip().split(' ')
+			if len(l) != d:
+				logging.error('found {} floats instead of {}'.format(len(l),d))
+				sys.exit()
+			query.append(l)
+
+		query_str = []
+		if file_str is not None:
+			if file_str.endswith('.gz'): 
+				f = gzip.open(file_str, 'rb')
+			else:
+				f = io.open(file_str, 'r', encoding='utf-8', newline='\n', errors='ignore')
+			for l in f:
+				query_str.append(l.rstrip())
+
+		x = np.array(db).astype('float32')
+		D, I = index.search(x, k)
+		for i in range(len(I)):
+			out = []
+			out.append(str(i))
+			out.append(str(I[i]))
+			if len(query_str):
+				out.append(query_str[i])
+			if len(self.db_str):
+				out.append(self.db_str[I[i]])
+			print('\t'.join(out))
 
 
 if __name__ == '__main__':
 
 	fdb = None
 	fquery = None
+	fdb_str = None
+	fquery_str = None
 	d = 512
 	k = 10
 	verbose = False
 	name = sys.argv.pop(0)
-	usage = '''usage: {} [-d INT] [-k INT] [-v]
-	-db    FILE : file to index
-	-query FILE : file with query
-	-d      INT : vector size (default 512)
-	-k      INT : k-best to retrieve (default 10)
-	-v          : verbose output (default False)
-	-h          : this help
+	usage = '''usage: {} -db FILE -query FILE [-db_str FILE] [-query_str] [-d INT] [-k INT] [-v]
+	-db        FILE : file to index 
+	-db_str    FILE : file to index 
+	-query     FILE : file with queries
+	-query_str FILE : file with queries
+	-d          INT : vector size (default 512)
+	-k          INT : k-best to retrieve (default 10)
+	-v              : verbose output (default False)
+	-h              : this help
 '''.format(name)
 
 	while len(sys.argv):
@@ -71,12 +101,18 @@ if __name__ == '__main__':
 			verbose = True
 		elif tok=="-db" and len(sys.argv):
 			fdb = sys.argv.pop(0)
+		elif tok=="-db_str" and len(sys.argv):
+			fdb_str = sys.argv.pop(0)
 		elif tok=="-query" and len(sys.argv):
 			fquery = sys.argv.pop(0)
+		elif tok=="-query_str" and len(sys.argv):
+			fquery_str = sys.argv.pop(0)
 		elif tok=="-k" and len(sys.argv):
 			k = int(sys.argv.pop(0))
 		elif tok=="-d" and len(sys.argv):
 			d = int(sys.argv.pop(0))
+		elif tok=="-query_is_db":
+			query_is_db = True
 		else:
 			sys.stderr.write('error: unparsed {} option\n'.format(tok))
 			sys.stderr.write("{}".format(usage))
@@ -84,8 +120,8 @@ if __name__ == '__main__':
 
 
 	if fdb is not None:
-		indexdb = IndexDB(fdb,d)
+		indexdb = IndexDB(fdb,d,fdb_str)
 
 	if fquery is not None:
-		Query(indexdb,fquery,d,k)
+		indexdb.Query(fquery,d,k,fquery_str)
 
