@@ -75,7 +75,7 @@ class IndexFaiss:
 				if i in n_ok[0:j+1]:
 					n_ok[j] += 1
 
-		n_ok = n_ok / len(x)
+		n_ok = [n/len(x) for n in n_ok]
 		print('Done Acc = [{}] over {} examples'.format(' '.join(["{:.3f}".format(a) for a in n_ok]),len(x)))
 
 if __name__ == '__main__':
