@@ -108,15 +108,15 @@ class Infer():
             
                 if self.pooling == 'max':
                     s, _ = torch.max(h1*mask_s + (1.0-mask_s)*-999.9, dim=1) #-999.9 should be -Inf but it produces an nan when multiplied by 0.0
-                    if len(src_tgt)>1:
+                    if len(files)>1:
                         t, _ = torch.max(h2*mask_t + (1.0-mask_t)*-999.9, dim=1) #-999.9 should be -Inf but it produces an nan when multiplied by 0.0
                 elif self.pooling == 'mean':
                     s = torch.sum(h1 * mask_s, dim=1) / torch.sum(mask_s, dim=1)
-                    if len(src_tgt)>1:
+                    if len(files)>1:
                         t = torch.sum(h2 * mask_t, dim=1) / torch.sum(mask_t, dim=1)
                 elif self.pooling == 'cls':
                     s = h1[:, 0, :] # take embedding of first token <cls>
-                    if len(src_tgt)>1:
+                    if len(files)>1:
                         t = h2[:, 0, :] # take embedding of first token <cls>
                 else:
                     logging.error('bad pooling method: {}'.format(self.pooling))
