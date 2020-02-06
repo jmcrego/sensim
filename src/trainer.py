@@ -74,18 +74,18 @@ class Trainer():
         beta1 = opts.cfg['beta1']
         beta2 = opts.cfg['beta2']
         eps = opts.cfg['eps']
-        self.sim_run = opts.steps['sim']['run']
         batch_size = opts.train['batch_size']
         max_length = opts.train['max_length']
-        p_uneven = opts.steps['sim']['p_uneven']
         swap_bitext = opts.train['swap_bitext'] 
+        self.sim_run = self.steps['sim']['run']
+        p_uneven = self.steps['sim']['p_uneven']
         sim_pooling = self.steps['sim']['pooling']
         R = self.steps['sim']['R']
         align_scale = self.steps['sim']['align_scale']
         self.p_mask = self.steps['mlm']['p_mask']
         self.r_same = self.steps['mlm']['r_same']
         self.r_rand = self.steps['mlm']['r_rand']
-        if 1.0 - r_same - r_rand <= 0.0:
+        if 1.0 - self.r_same - self.r_rand <= 0.0:
             logging.error('r_mask={} <= zero'.format(1.0 - self.r_same - self.r_rand))
             sys.exit()
 
