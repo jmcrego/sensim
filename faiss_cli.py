@@ -35,9 +35,9 @@ class IndexFaiss:
         self.index = faiss.IndexFlatIP(d) #inner product (needs vectors normalization)
         self.db = np.array(self.db).astype('float32')
         print(self.db_str[99])
-        print(' '.join(self.db[99]))
+        print('{:.4f}'.format(x) for x in self.db[99])
         faiss.normalize_L2(self.db)
-        print(' '.join(self.db[99]))
+        print('{:.4f}'.format(x) for x in self.db[99])
         sys.exit()
         print(self.db[99])
         self.index.add(self.db) # add vectors to the index
