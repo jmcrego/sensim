@@ -37,7 +37,8 @@ class IndexFaiss:
 
         self.index = faiss.IndexFlatIP(d)       # build the index L2
         self.db = np.array(self.db).astype('float32')
-        self.index.add(faiss.normalize_L2(self.db)) # add vectors to the index
+        faiss.normalize_L2(self.db)
+        self.index.add(self.db) # add vectors to the index
         logging.info("read {} vectors".format(self.index.ntotal))
 
 
