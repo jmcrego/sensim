@@ -29,9 +29,16 @@ class IndexFaiss:
 			for l in f:
 				self.db_str.append(l.rstrip())
 
+
+   	#build an index with METRIC_INNER_PRODUCT
+	   #normalize the vectors prior to adding them to the index (with faiss.normalize_L2 in Python)
+   	#normalize the vectors prior to searching them
 		self.index = faiss.IndexFlatIP(d)  		# build the index L2
-		self.db = np.array(self.db).astype('float32')
-		self.index.add(self.db) # add vectors to the index
+   	self.index.add(faiss.normalize_L2(np.array(self.db).astype('float32')))
+
+#		self.index = faiss.IndexFlatIP(d)  		# build the index L2
+#		self.db = np.array(self.db).astype('float32')
+#		self.index.add(self.db) # add vectors to the index
 		logging.info("read {} vectors".format(self.index.ntotal))
 
 
