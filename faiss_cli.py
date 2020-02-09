@@ -46,7 +46,7 @@ class IndexFaiss:
 
     def Query(self,file,d,k,file_str):
         if file.endswith('.gz'): 
-            f = gzip.open(fsrc, 'r')
+            f = gzip.open(fsrc, 'rb')
         else:
             f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
@@ -61,7 +61,7 @@ class IndexFaiss:
         query_str = []
         if file_str is not None:
             if file_str.endswith('.gz'): 
-                f = gzip.open(file_str, 'r')
+                f = gzip.open(file_str, 'rb')
             else:
                 f = io.open(file_str, 'r', encoding='utf-8', newline='\n', errors='ignore')
             for l in f:
@@ -87,7 +87,7 @@ class IndexFaiss:
                     if len(self.db_str):
                         out[-1] += " {}".format(self.db_str[I[i,j]])
 #                sys.stdout.buffer.write('\n\t'.join(out)+'\n')
-                sys.stdout.write('\t\n'.join(out)+'\n')
+                print('\t\n'.join(out))
             else:
                 out.append(str(i))
                 out.append("{} {}".format(I[i],D[i]))
