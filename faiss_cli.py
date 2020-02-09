@@ -39,14 +39,14 @@ class IndexFaiss:
 
         self.index = faiss.IndexFlatIP(d)       # build the index L2
         self.db = np.array(self.db).astype('float32')
-#        faiss.normalize_L2(self.db)
+        faiss.normalize_L2(self.db)
         self.index.add(self.db) # add vectors to the index
         logging.info("read {} vectors".format(self.index.ntotal))
 
 
-    def Query(self,file,d,k,file_str):
+    def Query(self,file,d,k,file_str,verbose):
         if file.endswith('.gz'): 
-            f = gzip.open(fsrc, 'rb')
+            f = gzip.open(fsrc, 'rb', encoding='utf-8')
         else:
             f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
@@ -61,7 +61,7 @@ class IndexFaiss:
         query_str = []
         if file_str is not None:
             if file_str.endswith('.gz'): 
-                f = gzip.open(file_str, 'rb')
+                f = gzip.open(file_str, 'rb', encoding='utf-8')
             else:
                 f = io.open(file_str, 'r', encoding='utf-8', newline='\n', errors='ignore')
             for l in f:
@@ -69,7 +69,7 @@ class IndexFaiss:
 
         n_ok = [0.0] * k
         x = np.array(query).astype('float32')
-#        faiss.normalize_L2(x)
+        faiss.normalize_L2(x)
         D, I = self.index.search(x, k)
         for i in range(len(I)):
             ### Accuracy
@@ -78,7 +78,7 @@ class IndexFaiss:
                     n_ok[j] += 1.0
             ### output
             out = []
-            if True:
+            if verbose:
                 out.append(str(i))
                 if len(query_str):
                     out[-1] += " {}".format(query_str[i])
@@ -86,7 +86,6 @@ class IndexFaiss:
                     out.append("{}:{:.4f}".format(I[i,j],D[i,j]))
                     if len(self.db_str):
                         out[-1] += " {}".format(self.db_str[I[i,j]])
-#                sys.stdout.buffer.write('\n\t'.join(out)+'\n')
                 print('\n\t'.join(out))
             else:
                 out.append(str(i))
@@ -152,5 +151,5 @@ if __name__ == '__main__':
         indexdb = IndexFaiss(fdb,d,fdb_str)
 
     if fquery is not None:
-        indexdb.Query(fquery,d,k,fquery_str)
+        indexdb.Query(fquery,d,k,fquery_str,verbose)
 
