@@ -70,18 +70,29 @@ class IndexFaiss:
         faiss.normalize_L2(x)
         D, I = self.index.search(x, k)
         for i in range(len(I)):
-            out = []
-            out.append(str(i))
-            out.append("{}:{:.3f}".format(I[i],D[i]))
-            if len(query_str):
-                out.append(query_str[i])
-            if len(self.db_str):
-                out.append(self.db_str[I[i,0]])
-            print('\n\t'.join(out))
             ### Accuracy
             for j in range(k):
                 if i in I[i,0:j+1]:
                     n_ok[j] += 1.0
+            ### output
+            out = []
+            if True:
+                out.append(str(i))
+                if len(query_str):
+                    out[-1] += " {}".format(query_str[i])
+                for j in range(len(I[i])):
+                    out.append("{}:{:.3f}".format(I[i,j],D[i,j]))
+                    if len(self.db_str):
+                        out[-1] += " {}".format(self.db_str[I[i,j]])
+                print('\n\t'.join(out))
+            else:
+                out.append(str(i))
+                out.append("{} {}".format(I[i],D[i]))
+                if len(query_str):
+                    out.append(query_str[i])
+                if len(self.db_str):
+                    out.append(self.db_str[I[i,0]])
+                print('\t'.join(out))
 
         n_ok = ["{:.3f}".format(n/len(x)) for n in n_ok]
         print('Done k-best Acc = {} over {} examples'.format(n_ok,len(x)))
