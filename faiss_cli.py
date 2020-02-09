@@ -85,7 +85,7 @@ class IndexFaiss:
                     out.append("{}:{:.3f}".format(I[i,j],D[i,j]))
                     if len(self.db_str):
                         out[-1] += " {}".format(self.db_str[I[i,j]])
-                print('\n\t'.join(out))
+                print(('\n\t'.join(out)).decode())
             else:
                 out.append(str(i))
                 out.append("{} {}".format(I[i],D[i]))
