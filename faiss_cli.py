@@ -67,6 +67,7 @@ class IndexFaiss:
 
         n_ok = [0.0] * k
         x = np.array(query).astype('float32')
+        faiss.normalize_L2(x)
         D, I = self.index.search(x, k)
         for i in range(len(I)):
             out = []
