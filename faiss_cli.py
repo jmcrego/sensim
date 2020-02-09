@@ -64,7 +64,7 @@ class IndexFaiss:
 		for i in range(len(I)):
 			out = []
 			out.append(str(i))
-			out.append("{} {:.4f}".format(I[i],D[i]))
+			out.append("{} {}".format(I[i],D[i]))
 			if len(query_str):
 				out.append(query_str[i])
 			if len(self.db_str):
