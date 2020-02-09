@@ -37,7 +37,7 @@ class IndexFaiss:
         print(self.db_str[99])
         print(self.db[99])
         faiss.normalize_L2(self.db)
-        if len(self.db)
+        print(self.db[99])
         sys.exit()
         print(self.db[99])
         self.index.add(self.db) # add vectors to the index
