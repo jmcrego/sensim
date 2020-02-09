@@ -3,6 +3,7 @@ import sys
 import io
 import faiss
 import numpy as np
+from faiss import normalize_L2
 
 class IndexFaiss:
 
