@@ -39,7 +39,7 @@ class IndexFaiss:
 
         self.index = faiss.IndexFlatIP(d)       # build the index L2
         self.db = np.array(self.db).astype('float32')
-        faiss.normalize_L2(self.db)
+#        faiss.normalize_L2(self.db)
         self.index.add(self.db) # add vectors to the index
         logging.info("read {} vectors".format(self.index.ntotal))
 
@@ -69,7 +69,7 @@ class IndexFaiss:
 
         n_ok = [0.0] * k
         x = np.array(query).astype('float32')
-        faiss.normalize_L2(x)
+#        faiss.normalize_L2(x)
         D, I = self.index.search(x, k)
         for i in range(len(I)):
             ### Accuracy
@@ -83,7 +83,7 @@ class IndexFaiss:
                 if len(query_str):
                     out[-1] += " {}".format(query_str[i])
                 for j in range(len(I[i])):
-                    out.append("{}:{:.3f}".format(I[i,j],D[i,j]))
+                    out.append("{}:{:.4f}".format(I[i,j],D[i,j]))
                     if len(self.db_str):
                         out[-1] += " {}".format(self.db_str[I[i,j]])
 #                sys.stdout.buffer.write('\n\t'.join(out)+'\n')
