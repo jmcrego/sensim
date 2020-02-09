@@ -64,12 +64,13 @@ class IndexFaiss:
 		for i in range(len(I)):
 			out = []
 			out.append(str(i))
-			out.append(str(I[i]))
+			out.append("{} {:.4f}".format(I[i],D[i]))
 			if len(query_str):
 				out.append(query_str[i])
 			if len(self.db_str):
 				out.append(self.db_str[I[i,0]])
 			print('\t'.join(out))
+			### Accuracy
 			for j in range(k):
 				if i in I[i,0:j+1]:
 					n_ok[j] += 1.0
