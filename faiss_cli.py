@@ -108,7 +108,7 @@ class Index:
     def Query(self,file,d,k,file_str,verbose):
         cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         query = Infile(file, d, norm=True, file_str=file_str)
-        c = cos(self.db.vec, query.vec)
+        c = cos(torch.from_numpy(self.db.vec), torch.from_numpy(query.vec))
 
         #results(D,I,k,self.db,query,verbose)
 
