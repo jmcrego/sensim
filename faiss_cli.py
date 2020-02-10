@@ -85,7 +85,7 @@ class IndexFaiss:
                 print('\t'.join(out))
 
         n_ok = ["{:.3f}".format(n/len(query.vec)) for n in n_ok]
-        print('Done k-best Acc = {} over {} examples'.format(n_ok,len(x)))
+        print('Done k-best Acc = {} over {} examples'.format(n_ok,len(query.vec)))
 
 if __name__ == '__main__':
 
