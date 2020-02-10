@@ -102,7 +102,7 @@ class Index:
 
     def __init__(self, file, d, file_str=None):
         self.db = Infile(file, d, norm=True, file_str=file_str)
-        logging.info("read {} vectors".format(self.index.ntotal))
+        logging.info("read {} vectors".format(len(self.db)))
 
 
     def Query(self,file,d,k,file_str,verbose):
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     k = 10
     verbose = False
     name = sys.argv.pop(0)
-    usage = '''usage: {} -db FILE -query FILE [-db_str FILE] [-query_str] [-d INT] [-k INT] [-v]
+    usage = '''usage: {} -db FILE -query FILE [-db_str FILE] [-query_str FILE] [-d INT] [-k INT] [-v]
     -db        FILE : file to index 
     -db_str    FILE : file to index 
     -query     FILE : file with queries
@@ -164,6 +164,9 @@ if __name__ == '__main__':
     if fdb is not None:
         indexdb = Index(fdb,d,fdb_str)
 
+
     if fquery is not None:
         indexdb.Query(fquery,d,k,fquery_str,verbose)
+
+
 
