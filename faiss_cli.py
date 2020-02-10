@@ -117,8 +117,8 @@ class Index:
             q =  torch.from_numpy(query.vec[i]).unsqueeze(0)
             dist = F.cosine_similarity(db,q)
             dist_sorted, index_sorted = torch.sort(dist)
-            D.append(dist_sorted.data())
-            I.append(index_sorted.data())
+            D.append(dist_sorted.detach())
+            I.append(index_sorted.detach())
         results(np.array(D),np.array(I),k,self.db,query,verbose)
 
 
