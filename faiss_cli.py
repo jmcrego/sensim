@@ -110,16 +110,16 @@ class Index:
     def Query(self,file,d,k,file_str,verbose):
         #cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         query = Infile(file, d, norm=True, file_str=file_str)
-        d = torch.from_numpy(self.db.vec)
-        print(d.size())
-        for i_query in range(len(query)):
-            q =  torch.from_numpy(query.vec[i_query]).unsqueeze(0)
-            print(q.size())
-            dist = F.cosine_similarity(d,q)
-            index_sorted = torch.argsort(dist)
-            top_k = index_sorted[:k]
-            print(top_k.size())
-        #results(D,I,k,self.db,query,verbose)
+        db = torch.from_numpy(self.db.vec)
+        D = []
+        I = []
+        for i in range(len(query)):
+            q =  torch.from_numpy(query.vec[i]).unsqueeze(0)
+            dist = F.cosine_similarity(db,q)
+            dist_sorted, index_sorted = torch.sort(dist)
+            D.append(dist_sorted)
+            I.append(index_sorted)
+        results(D,I,k,self.db,query,verbose)
 
 
 if __name__ == '__main__':
