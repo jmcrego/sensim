@@ -119,7 +119,7 @@ class Index:
             dist_sorted, index_sorted = torch.sort(dist)
             D.append(dist_sorted)
             I.append(index_sorted)
-        results(D,I,k,self.db,query,verbose)
+        results(np.array(D),np.array(I),k,self.db,query,verbose)
 
 
 if __name__ == '__main__':
