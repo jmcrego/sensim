@@ -230,6 +230,99 @@ class batch():
                 self.idx_tgt[i] += [idx_pad]*(self.maxltgt-len(self.idx_tgt[i]))
         self.idx_tgt.append(idx_tgt) ### [<cls>, <bos>, <t1>, <t2>, ..., <tn>, <eos>, <pad>, ...]   (ltgt is the position of <eos> +1)
 
+####################################################################
+### Dataset ########################################################
+####################################################################
+
+class Dataset():
+
+    def __init__(self, token, vocab, max_length=0):
+        self.token = token
+        self.vocab = vocab
+        self.max_length = max_length
+        self.idx = []
+        self.len = []
+
+    def addfiles(self, fsrc, ftgt, src_bos=True, src_eos=True, src_cls=True, src_sep=False, tgt_bos=True, tgt_eos=True, tgt_cls=False, tgt_sep=True):
+        if fsrc.endswith('.gz'): 
+            fs = gzip.open(fsrc, 'rb')
+        else: 
+            fs = io.open(fsrc, 'r', encoding='utf-8', newline='\n', errors='ignore')
+        if ftgt.endswith('.gz'): 
+            ft = gzip.open(ftgt, 'rb')
+        else: 
+            ft = io.open(ftgt, 'r', encoding='utf-8', newline='\n', errors='ignore')
+
+        n_filt = 0
+        for ls, lt in zip(fs,ft):
+            sidx = [self.vocab[s] for s in self.token.tokenize(ls)]
+            tidx = [self.vocab[t] for t in self.token.tokenize(lt)]
+            if len(sidx)+len(tidx) > self.max_length:
+                n_filt += 1
+                continue
+
+            if src_bos:
+                sidx.insert(0,idx_bos)
+            if src_eos:
+                sidx.append(idx_eos)
+            if src_cls:
+                sidx.insert(0,idx_cls)
+            if src_sep:
+                sidx.insert(0,idx_sep)
+
+            if tgt_bos:
+                tidx.insert(0,idx_bos)
+            if tgt_eos:
+                tidx.append(idx_eos)
+            if tgt_cls:
+                tidx.insert(0,idx_cls)
+            if tgt_sep:
+                tidx.insert(0,idx_sep)
+
+            self.len.append(len(sidx)+len(tidx))
+            self.idx.append([sidx,tidx])
+
+        logging.info('found {} sentences in files: [{},{}] #filtered: {}'.format(len(self.idx),fsrc,ftgt,n_filt))
+
+
+    def addfile(self, file, add_bos=True, add_eos=True, add_cls=True, add_sep=False):
+        if file.endswith('.gz'): 
+            f = gzip.open(file, 'rb')
+
+        n_filt = 0
+        for l in f:
+            idx = [self.vocab[t] for t in self.token.tokenize(l)]
+            if len(idx) > self.max_length:
+                n_filt += 1
+                continue
+
+            if add_bos:
+                idx.insert(0,idx_bos)
+            if add_eos:
+                idx.append(idx_eos)
+            if add_cls:
+                idx.insert(0,idx_cls)
+            if add_sep:
+                idx.insert(0,idx_sep)
+
+            self.idx.append([idx])
+            self.len.append(len(idx))
+        logging.info('found {} sentences in file:{} #filtered: {}'.format(len(self.idx),file,n_filt))
+
+
+    def buildbatches(self, batch_size, p_swap=0.0, p_uneven=0.0, allow_shuffle=False):
+        self.batches = []
+        indexs = [i for i in range(len(self.idx))] #indexs in original order
+        if allow_shuffle:
+            logging.debug('sorting data to minimize padding')
+            indexs = np.argsort(self.len)
+
+
+
+
+    def __len__(self):
+        return len(self.idx)
+
 
 ####################################################################
 ### DataSet ########################################################
@@ -291,7 +384,6 @@ class DataSet():
                     if max_num_sents > 0 and m >= max_num_sents: break
                 logging.info('read {} out of {} sentences from files [{},{}]'.format(m,n,fsrc,ftgt))
         logging.info('read {} examples'.format(len(self.data)))
-
         #####################
         ### build batches ###
         #####################
