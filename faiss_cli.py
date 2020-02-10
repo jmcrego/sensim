@@ -4,6 +4,7 @@ import sys
 import io
 import gzip
 import faiss
+import torch
 import numpy as np
 from torch import nn
 from faiss import normalize_L2
