@@ -82,7 +82,7 @@ def results(D,I,k,db,query,verbose):
             print('\t'.join(out))
 
     n_ok = ["{:.3f}".format(n/len(query)) for n in n_ok]
-    print('Done k-best Acc = {} over {} examples'.format(' '.join(n_ok),len(query)))
+    print('Done k-best Acc = [{}] over {} examples'.format(' '.join(n_ok),len(query)))
 
 
 class IndexFaiss:
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     fdb_str = None
     fquery_str = None
     d = 512
-    k = 10
+    k = 1
     verbose = False
     name = sys.argv.pop(0)
     usage = '''usage: {} -db FILE -query FILE [-db_str FILE] [-query_str FILE] [-d INT] [-k INT] [-v]
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     -query     FILE : file with queries
     -query_str FILE : file with queries
     -d          INT : vector size (default 512)
-    -k          INT : k-best to retrieve (default 10)
+    -k          INT : k-best to retrieve (default 1)
     -v              : verbose output (default False)
     -h              : this help
 '''.format(name)
