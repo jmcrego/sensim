@@ -5,6 +5,7 @@ import io
 import gzip
 import faiss
 import numpy as np
+from torch import nn
 from faiss import normalize_L2
 
 class Infile:
@@ -95,6 +96,22 @@ class IndexFaiss:
         query = Infile(file, d, norm=True, file_str=file_str)
         D, I = self.index.search(query.vec, k)
         results(D,I,k,self.db,query,verbose)
+
+
+class Index:
+
+    def __init__(self, file, d, file_str=None):
+        self.db = Infile(file, d, norm=True, file_str=file_str)
+        logging.info("read {} vectors".format(self.index.ntotal))
+
+
+    def Query(self,file,d,k,file_str,verbose):
+        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        query = Infile(file, d, norm=True, file_str=file_str)
+        c = cos(self.db.vec, query.vec)
+        
+        #results(D,I,k,self.db,query,verbose)
+
 
 if __name__ == '__main__':
 
