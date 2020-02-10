@@ -51,6 +51,37 @@ class Infile:
         return len(self.txt)>0
 
 
+def output(D,I,k,db,query,verbose)
+    n_ok = [0.0] * k
+    for i in range(len(I)):
+        ### Accuracy
+        for j in range(k):
+            if i in I[i,0:j+1]:
+                n_ok[j] += 1.0
+        ### output
+        out = []
+        if verbose:
+            out.append(str(i))
+            if query.txts():
+                out[-1] += " {}".format(query.txt[i])
+            for j in range(len(I[i])):
+                out.append("{}:{:.4f}".format(I[i,j],D[i,j]))
+                if db.txts():
+                    out[-1] += " {}".format(db.txt[I[i,j]])
+            print('\n\t'.join(out))
+        else:
+            out.append(str(i))
+            out.append("{} {}".format(I[i],D[i]))
+            if query.txts():
+                out.append(query.txt[i])
+            if db.txts():
+                out.append(db.txt[I[i,0]])
+            print('\t'.join(out))
+
+    n_ok = ["{:.3f}".format(n/len(query)) for n in n_ok]
+    print('Done k-best Acc = {} over {} examples'.format(n_ok,len(query)))
+
+
 class IndexFaiss:
 
     def __init__(self, file, d, file_str=None):
@@ -62,36 +93,8 @@ class IndexFaiss:
 
     def Query(self,file,d,k,file_str,verbose):
         query = Infile(file, d, norm=True, file_str=file_str)
-
-        n_ok = [0.0] * k
         D, I = self.index.search(query.vec, k)
-        for i in range(len(I)):
-            ### Accuracy
-            for j in range(k):
-                if i in I[i,0:j+1]:
-                    n_ok[j] += 1.0
-            ### output
-            out = []
-            if verbose:
-                out.append(str(i))
-                if query.txts():
-                    out[-1] += " {}".format(query.txt[i])
-                for j in range(len(I[i])):
-                    out.append("{}:{:.4f}".format(I[i,j],D[i,j]))
-                    if self.db.txts():
-                        out[-1] += " {}".format(self.db.txt[I[i,j]])
-                print('\n\t'.join(out))
-            else:
-                out.append(str(i))
-                out.append("{} {}".format(I[i],D[i]))
-                if query.txts():
-                    out.append(query.txt[i])
-                if self.db.txts():
-                    out.append(self.db.txt[I[i,0]])
-                print('\t'.join(out))
-
-        n_ok = ["{:.3f}".format(n/len(query)) for n in n_ok]
-        print('Done k-best Acc = {} over {} examples'.format(n_ok,len(query)))
+        output(D,I,k,self.db,query,verbose)
 
 if __name__ == '__main__':
 
