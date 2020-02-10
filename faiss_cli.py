@@ -7,65 +7,58 @@ import faiss
 import numpy as np
 from faiss import normalize_L2
 
-class IndexFaiss:
+class Infile:
 
-    def __init__(self, file, d, file_str=None):
+    def __init__(self, file, norm=True,file_str=None):
+        self.vec = []
+        self.str = []
+
         if file.endswith('.gz'): 
             f = gzip.open(file, 'rt')
         else:
             f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
-        self.db = []
         for l in f:
             l = l.rstrip().split(' ')
             if len(l) != d:
                 logging.error('found {} floats instead of {}'.format(len(l),d))
                 sys.exit()
-            self.db.append(l)
+            self.vec.append(l)
 
-        self.db_str = []
-        if file_str is not None:
-            if file_str.endswith('.gz'): 
-                f = gzip.open(file_str, 'rt')
-            else:
-                f = io.open(file_str, 'r', encoding='utf-8', newline='\n', errors='ignore')
-            for l in f:
-                self.db_str.append(l.rstrip())
+        self.vec = np.array(self.vec).astype('float32')
+        if norm:
+            faiss.normalize_L2(self.vec)
 
+        if file_str is None:
+            return
+
+        if file_str.endswith('.gz'): 
+            f = gzip.open(file_str, 'rt')
+        else:
+            f = io.open(file_str, 'r', encoding='utf-8', newline='\n', errors='ignore')
+
+        for l in f:
+            self.txt.append(l.rstrip())
+
+        if len(self.txt) != len(self.vec):
+            logging.error('diff num of entries {} <> {} in files {} and {}'.format(len(self.vec),len(self.txt),file, file_str))
+            sys.exit()
+
+
+class IndexFaiss:
+
+    def __init__(self, file, d, file_str=None):
+        self.db = Infile(file, norm=True, file_str=file_str)
         self.index = faiss.IndexFlatIP(d) #inner product (needs L2 normalization over db and query vectors)
-        self.db = np.array(self.db).astype('float32')
-        faiss.normalize_L2(self.db)
-        self.index.add(self.db) # add all normalized vectors to the index
+        self.index.add(self.db.vec) # add all normalized vectors to the index
         logging.info("read {} vectors".format(self.index.ntotal))
 
 
     def Query(self,file,d,k,file_str,verbose):
-        if file.endswith('.gz'): 
-            f = gzip.open(fsrc, 'rt')
-        else:
-            f = io.open(file, 'r', encoding='utf-8', newline='\n', errors='ignore')
-
-        query = []
-        for l in f:
-            l = l.rstrip().split(' ')
-            if len(l) != d:
-                logging.error('found {} floats instead of {}'.format(len(l),d))
-                sys.exit()
-            query.append(l)
-
-        query_str = []
-        if file_str is not None:
-            if file_str.endswith('.gz'): 
-                f = gzip.open(file_str, 'rt')
-            else:
-                f = io.open(file_str, 'r', encoding='utf-8', newline='\n', errors='ignore')
-            for l in f:
-                query_str.append(l.rstrip())
+        query = Infile(file, norm=True, file_str=file_str)
 
         n_ok = [0.0] * k
-        x = np.array(query).astype('float32')
-        faiss.normalize_L2(x)
-        D, I = self.index.search(x, k)
+        D, I = self.index.search(x, query.vec)
         for i in range(len(I)):
             ### Accuracy
             for j in range(k):
@@ -75,20 +68,20 @@ class IndexFaiss:
             out = []
             if verbose:
                 out.append(str(i))
-                if len(query_str):
-                    out[-1] += " {}".format(query_str[i])
+                if len(query.str):
+                    out[-1] += " {}".format(query.str[i])
                 for j in range(len(I[i])):
                     out.append("{}:{:.4f}".format(I[i,j],D[i,j]))
                     if len(self.db_str):
-                        out[-1] += " {}".format(self.db_str[I[i,j]])
+                        out[-1] += " {}".format(self.db.str[I[i,j]])
                 print('\n\t'.join(out))
             else:
                 out.append(str(i))
                 out.append("{} {}".format(I[i],D[i]))
-                if len(query_str):
-                    out.append(query_str[i])
-                if len(self.db_str):
-                    out.append(self.db_str[I[i,0]])
+                if len(query.str):
+                    out.append(query.str[i])
+                if len(self.db.str):
+                    out.append(self.db.str[I[i,0]])
                 print('\t'.join(out))
 
         n_ok = ["{:.3f}".format(n/len(x)) for n in n_ok]
