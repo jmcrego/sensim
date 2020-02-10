@@ -44,6 +44,11 @@ class Infile:
             logging.error('diff num of entries {} <> {} in files {} and {}'.format(len(self.vec),len(self.txt),file, file_str))
             sys.exit()
 
+    def __len__(self):
+        return len(self.vec)
+
+    def strs(self):
+        return len(self.str)>0
 
 class IndexFaiss:
 
@@ -68,24 +73,24 @@ class IndexFaiss:
             out = []
             if verbose:
                 out.append(str(i))
-                if len(query.str):
+                if query.strs():
                     out[-1] += " {}".format(query.str[i])
                 for j in range(len(I[i])):
                     out.append("{}:{:.4f}".format(I[i,j],D[i,j]))
-                    if len(self.db_str):
+                    if self.db.strs():
                         out[-1] += " {}".format(self.db.str[I[i,j]])
                 print('\n\t'.join(out))
             else:
                 out.append(str(i))
                 out.append("{} {}".format(I[i],D[i]))
-                if len(query.str):
+                if query.strs():
                     out.append(query.str[i])
-                if len(self.db.str):
+                if self.db.strs():
                     out.append(self.db.str[I[i,0]])
                 print('\t'.join(out))
 
         n_ok = ["{:.3f}".format(n/len(query.vec)) for n in n_ok]
-        print('Done k-best Acc = {} over {} examples'.format(n_ok,len(query.vec)))
+        print('Done k-best Acc = {} over {} examples'.format(n_ok,query.strs()))
 
 if __name__ == '__main__':
 
