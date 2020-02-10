@@ -82,7 +82,7 @@ def results(D,I,k,db,query,verbose):
             print('\t'.join(out))
 
     n_ok = ["{:.3f}".format(n/len(query)) for n in n_ok]
-    print('Done k-best Acc = {} over {} examples'.format(n_ok,len(query)))
+    print('Done k-best Acc = {} over {} examples'.format(' '.join(n_ok),len(query)))
 
 
 class IndexFaiss:
@@ -99,7 +99,7 @@ class IndexFaiss:
         D, I = self.index.search(query.vec, k)
         results(D,I,k,self.db,query,verbose)
 
-
+'''
 class Index:
 
     def __init__(self, file, d, file_str=None):
@@ -120,7 +120,7 @@ class Index:
             D.append(dist_sorted[:k].numpy())
             I.append(index_sorted[:k].numpy())
         results(np.array(D),np.array(I),k,self.db,query,verbose)
-
+'''
 
 if __name__ == '__main__':
 
