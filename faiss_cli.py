@@ -109,7 +109,7 @@ class Index:
         cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         query = Infile(file, d, norm=True, file_str=file_str)
         c = cos(self.db.vec, query.vec)
-        
+
         #results(D,I,k,self.db,query,verbose)
 
 
@@ -162,7 +162,7 @@ if __name__ == '__main__':
 
 
     if fdb is not None:
-        indexdb = IndexFaiss(fdb,d,fdb_str)
+        indexdb = Index(fdb,d,fdb_str)
 
     if fquery is not None:
         indexdb.Query(fquery,d,k,fquery_str,verbose)
