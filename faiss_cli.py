@@ -58,7 +58,7 @@ class IndexFaiss:
         query = Infile(file, norm=True, file_str=file_str)
 
         n_ok = [0.0] * k
-        D, I = self.index.search(x, query.vec)
+        D, I = self.index.search(self.db.vec, query.vec)
         for i in range(len(I)):
             ### Accuracy
             for j in range(k):
