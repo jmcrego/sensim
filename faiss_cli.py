@@ -11,7 +11,7 @@ class Infile:
 
     def __init__(self, file, d, norm=True,file_str=None):
         self.vec = []
-        self.str = []
+        self.txt = []
 
         if file.endswith('.gz'): 
             f = gzip.open(file, 'rt')
@@ -47,8 +47,9 @@ class Infile:
     def __len__(self):
         return len(self.vec)
 
-    def strs(self):
-        return len(self.str)>0
+    def txts(self):
+        return len(self.txt)>0
+
 
 class IndexFaiss:
 
@@ -73,24 +74,24 @@ class IndexFaiss:
             out = []
             if verbose:
                 out.append(str(i))
-                if query.strs():
-                    out[-1] += " {}".format(query.str[i])
+                if query.txts():
+                    out[-1] += " {}".format(query.txt[i])
                 for j in range(len(I[i])):
                     out.append("{}:{:.4f}".format(I[i,j],D[i,j]))
-                    if self.db.strs():
-                        out[-1] += " {}".format(self.db.str[I[i,j]])
+                    if self.db.txts():
+                        out[-1] += " {}".format(self.db.txt[I[i,j]])
                 print('\n\t'.join(out))
             else:
                 out.append(str(i))
                 out.append("{} {}".format(I[i],D[i]))
-                if query.strs():
-                    out.append(query.str[i])
-                if self.db.strs():
-                    out.append(self.db.str[I[i,0]])
+                if query.txts():
+                    out.append(query.txt[i])
+                if self.db.txts():
+                    out.append(self.db.txt[I[i,0]])
                 print('\t'.join(out))
 
-        n_ok = ["{:.3f}".format(n/len(query.vec)) for n in n_ok]
-        print('Done k-best Acc = {} over {} examples'.format(n_ok,query.strs()))
+        n_ok = ["{:.3f}".format(n/len(query)) for n in n_ok]
+        print('Done k-best Acc = {} over {} examples'.format(n_ok,len(query)))
 
 if __name__ == '__main__':
 
