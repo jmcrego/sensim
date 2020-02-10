@@ -7,6 +7,7 @@ import faiss
 import torch
 import numpy as np
 from torch import nn
+from torch.nn import functional as F
 from faiss import normalize_L2
 
 class Infile:
@@ -107,14 +108,17 @@ class Index:
 
 
     def Query(self,file,d,k,file_str,verbose):
-        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        #cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         query = Infile(file, d, norm=True, file_str=file_str)
         d = torch.from_numpy(self.db.vec)
         print(d.size())
         for i_query in range(len(query)):
             q =  torch.from_numpy(query.vec[i_query]).unsqueeze(-1)
             print(q.size())
-            c = cos(d, q)
+            dist = F.cosine_similarity(d,q)
+            index_sorted = torch.argsort(dist)
+            top_k = index_sorted[:k]
+            print(top_k.size())
         #results(D,I,k,self.db,query,verbose)
 
 
