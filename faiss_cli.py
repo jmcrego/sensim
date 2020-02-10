@@ -9,7 +9,7 @@ from faiss import normalize_L2
 
 class Infile:
 
-    def __init__(self, file, norm=True,file_str=None):
+    def __init__(self, file, d, norm=True,file_str=None):
         self.vec = []
         self.str = []
 
@@ -48,14 +48,14 @@ class Infile:
 class IndexFaiss:
 
     def __init__(self, file, d, file_str=None):
-        self.db = Infile(file, norm=True, file_str=file_str)
+        self.db = Infile(file, d, norm=True, file_str=file_str)
         self.index = faiss.IndexFlatIP(d) #inner product (needs L2 normalization over db and query vectors)
         self.index.add(self.db.vec) # add all normalized vectors to the index
         logging.info("read {} vectors".format(self.index.ntotal))
 
 
     def Query(self,file,d,k,file_str,verbose):
-        query = Infile(file, norm=True, file_str=file_str)
+        query = Infile(file, d, norm=True, file_str=file_str)
 
         n_ok = [0.0] * k
         D, I = self.index.search(self.db.vec, query.vec)
