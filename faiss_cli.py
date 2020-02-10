@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
 
     if fdb is not None:
-        indexdb = Index(fdb,d,fdb_str)
+        indexdb = IndexFaiss(fdb,d,fdb_str)
 
 
     if fquery is not None:
