@@ -51,7 +51,7 @@ class Infile:
         return len(self.txt)>0
 
 
-def output(D,I,k,db,query,verbose)
+def results(D,I,k,db,query,verbose):
     n_ok = [0.0] * k
     for i in range(len(I)):
         ### Accuracy
@@ -94,7 +94,7 @@ class IndexFaiss:
     def Query(self,file,d,k,file_str,verbose):
         query = Infile(file, d, norm=True, file_str=file_str)
         D, I = self.index.search(query.vec, k)
-        output(D,I,k,self.db,query,verbose)
+        results(D,I,k,self.db,query,verbose)
 
 if __name__ == '__main__':
 
