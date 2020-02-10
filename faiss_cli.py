@@ -84,7 +84,7 @@ class IndexFaiss:
                     out.append(self.db.str[I[i,0]])
                 print('\t'.join(out))
 
-        n_ok = ["{:.3f}".format(n/len(x)) for n in n_ok]
+        n_ok = ["{:.3f}".format(n/len(query.vec)) for n in n_ok]
         print('Done k-best Acc = {} over {} examples'.format(n_ok,len(x)))
 
 if __name__ == '__main__':
