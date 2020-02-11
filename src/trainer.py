@@ -225,7 +225,7 @@ class Trainer():
                     h2 = self.model.forward(x2,x2_mask)
                     batch_loss = self.computeloss(h1, h2, l1, l2, y, mask_s, mask_t)
                 ds.add_batch(batch_loss,n_predictions)
-        ds.report(self.n_steps_so_far,step,'[Valid]',self.cuda)
+            ds.report(self.n_steps_so_far,step,'[Valid]',self.cuda)
 
 
     def mlm_batch_cuda(self, batch):

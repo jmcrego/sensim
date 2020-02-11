@@ -130,9 +130,10 @@ class Infer():
                     sentence = torch.Tensor.cpu(s).detach().numpy()[0]
                     print(' '.join([str(tok) for tok in sentence]))
                 elif len(files)>1:
+                    sim = cos(s,t)
                     if self.pooling == 'align':
                         align = []
-                        align.append([''] + src)
+                        align.append([str(sim[0])] + src)
                         for t in range(len(tgt)):
                             row = []
                             for s in range(len(src)):
@@ -145,7 +146,6 @@ class Infer():
                         table = [fmt.format(*row) for row in align]
                         print('\n'.join(table))
                     else:
-                        sim = cos(s,t)
                         print(torch.Tensor.cpu(sim).detach().numpy()[0])
 
         logging.info('End testing')
