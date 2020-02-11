@@ -132,7 +132,7 @@ class Infer():
                 elif len(files)>1:
                     if self.pooling == 'align':
                         #using mask_s and mask_t i must get rid of <cls> <bos> <eos> and <pad>
-                        print(S_st[0])
+                        print(S_st.size())
                     else:
                         sim = cos(s,t)
                         print(torch.Tensor.cpu(sim).detach().numpy()[0])
