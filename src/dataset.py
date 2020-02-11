@@ -397,6 +397,7 @@ class DataSet():
         currbatch = batch()
         for i in range(len(indexs)):
             index = indexs[i]
+            print('\nindex',index)
             src = self.data[index][0]
             print('src',src)
             idx_src = [vocab[s] for s in src]
@@ -408,6 +409,7 @@ class DataSet():
                 else:
                     isParallel = 1.0 ### parallel
                     index = indexs[i]
+                print('index',index)
                 print('isParallel',isParallel)
                 tgt = self.data[index][1]
                 print('tgt',tgt)
