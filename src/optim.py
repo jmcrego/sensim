@@ -94,8 +94,8 @@ class AlignSIM(nn.Module):
         logging.info('built criterion (align)')
         
     def forward(self, aggr, y, mask_t):
-        print('aggr',aggr[0])
-        print('y',y[0])
+        #print('aggr',aggr[0])
+        #print('y',y[0])
         sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[bs,lt] (by default ones builds on CPU)
         #aggr sign aggr*sign loss
         #-------------------------------
@@ -106,9 +106,9 @@ class AlignSIM(nn.Module):
         ##read like: when aggr > 0 (target related to source) and -sign is -1 (parallel) the loss is very small 
         #i change the sign since i used -1 (uneven) +1 (parallel)
         error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
-        print('error',error[0])
+        #print('error',error[0])
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
-        print('sum_error',sum_error[0])
+        #print('sum_error',sum_error[0])
         batch_error = torch.sum(sum_error)
         return batch_error #total loss of this batch (not normalized)
 
@@ -171,7 +171,7 @@ class ComputeLossSIM:
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) * self.align_scale #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
             if torch.isnan(S_st):
                 logging.info('nan detected in alignment matrix (S_st) ...try reducing align_scale')
-            print('S_st',S_st[0])
+            #print('S_st',S_st[0])
             aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
             loss = self.criterion(aggr_t,y,mask_t.squeeze())
 
