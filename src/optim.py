@@ -94,9 +94,9 @@ class AlignSIM(nn.Module):
         logging.info('built criterion (align)')
         
     def forward(self, aggr, y, mask_t):
+        print('aggr',aggr[0])
         print('y',y[0])
         sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[bs,lt] (by default ones builds on CPU)
-        print('sign',sign[0])
         #aggr sign aggr*sign loss
         #-------------------------------
         # >0    -1 (par)  <0   ~0
@@ -109,11 +109,8 @@ class AlignSIM(nn.Module):
         print('error',error[0])
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
         print('sum_error',sum_error[0])
-
-        #n_ok = ((aggr * -sign * mask_t) < 0.0).sum()
-        #n = mask_t.sum()
-        #logging.info('Acc={:.2f}'.format(acc))
-        return torch.sum(sum_error) #total loss of this batch (not normalized)
+        batch_error = torch.sum(sum_error)
+        return batch_error #total loss of this batch (not normalized)
 
 
 
@@ -172,9 +169,9 @@ class ComputeLossSIM:
 
         elif self.pooling == 'align':
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) * self.align_scale #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
-            print('S_st',S_st[0])
+            #print('S_st',S_st[0])
             aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
-            print('aggr_t',aggr_t[0])
+            #print('aggr_t',aggr_t[0])
             loss = self.criterion(aggr_t,y,mask_t.squeeze())
 
         else:
