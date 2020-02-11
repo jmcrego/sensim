@@ -138,9 +138,15 @@ class Infer():
                         print(idx_tgt)
                         print(S_st[0].size())
                         print(S_st[0])
-                        for s in range(2,S_st.size(1)-1):
-                            for t in range(2,S_st.size(2)-1):
-                                print("{}:{}:{} {}:{}:{}\t{}".format(s-2,src[s-2],idx_src[s-2], t-2,tgt[t-2],idx_tgt[t-2], S_st[0][s][t]))
+                        align = []
+                        align.append(tgt + '')
+                        for s in range(len(src)):
+                            line = S_st[0,s,2:-2] + src[s]
+                            align.append(line)
+                        print(align)
+#                        for s in range(2,S_st.size(1)-1):
+#                            for t in range(2,S_st.size(2)-1):
+#                                print("{}:{}:{} {}:{}:{}\t{}".format(s-2,src[s-2],idx_src[s-2], t-2,tgt[t-2],idx_tgt[t-2], S_st[0][s][t]))
                     else:
                         sim = cos(s,t)
                         print(torch.Tensor.cpu(sim).detach().numpy()[0])
