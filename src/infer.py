@@ -141,7 +141,9 @@ class Infer():
                         align = []
                         align.append(tgt + '')
                         for s in range(len(src)):
-                            line = S_st[0,s,2:-2] + src[s]
+                            line = S_st[0,s,2:-2]
+                            print(line)
+                            line.append(src[s])
                             align.append(line)
                         print(align)
 #                        for s in range(2,S_st.size(1)-1):
