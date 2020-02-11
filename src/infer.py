@@ -143,7 +143,7 @@ class Infer():
                         for t in range(len(tgt)):
                             row = list((S_st[0,2:-1,t+2]).cpu().numpy())
                             row.append(tgt[t])
-                            align.add_row(row)
+                            align.append(row)
                         #print(np.matrix(align))
                         s = [[str(e) for e in row] for row in align]
                         lens = [max(map(len, col)) for col in zip(*s)]
