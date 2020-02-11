@@ -31,7 +31,7 @@ class Infer():
         d_ff = opts.cfg['feedforward_size']
         h = opts.cfg['num_heads']
         dropout = opts.cfg['dropout']
-        self.align_scale = 0.005
+        self.align_scale = 1.0
         self.token = OpenNMTTokenizer(**opts.cfg['token'])
         self.pooling = opts.pooling
 
