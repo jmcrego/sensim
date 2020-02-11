@@ -9,6 +9,7 @@ import sys
 import glob
 import os
 import pyonmttok
+from prettytable import PrettyTable
 from collections import defaultdict
 from torch import nn
 from torch.nn import functional as F
@@ -132,19 +133,20 @@ class Infer():
                 elif len(files)>1:
                     if self.pooling == 'align':
                         #using mask_s and mask_t i must get rid of <cls> <bos> <eos> and <pad>
-                        print(src)
-                        print(idx_src)
-                        print(tgt)
-                        print(idx_tgt)
-                        print(S_st[0].size())
-                        print(S_st[0])
-                        align = []
+                        #print(src)
+                        #print(idx_src)
+                        #print(tgt)
+                        #print(idx_tgt)
+                        #print(S_st[0].size())
+                        #print(S_st[0])
+                        align = PrettyTable()
                         align.append(src + [''])
                         for t in range(len(tgt)):
-                            line = list((S_st[0,2:-1,t+2]).cpu().numpy())
-                            line.append(tgt[t])
-                            align.append(line)
-                        print(np.matrix(align))
+                            row = list((S_st[0,2:-1,t+2]).cpu().numpy())
+                            row.append(tgt[t])
+                            align.add_row(row)
+                        #print(np.matrix(align))
+                        print p.get_string(header=False, border=False)
                     else:
                         sim = cos(s,t)
                         print(torch.Tensor.cpu(sim).detach().numpy()[0])
