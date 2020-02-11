@@ -138,7 +138,6 @@ class Infer():
                         #print(idx_tgt)
                         #print(S_st[0].size())
                         #print(S_st[0])
-                        align = PrettyTable()
                         align.append(src + [''])
                         for t in range(len(tgt)):
                             row = list((S_st[0,2:-1,t+2]).cpu().numpy())
