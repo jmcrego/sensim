@@ -169,6 +169,8 @@ class ComputeLossSIM:
 
         elif self.pooling == 'align':
             S_st = torch.bmm(hs, torch.transpose(ht, 2, 1)) * self.align_scale #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
+            if torch.isnan(S_st):
+                logging.info('nan detected in alignment matrix (S_st) ...try reducing align_scale')
             print('S_st',S_st[0])
             aggr_t = self.aggr(S_st,mask_s) #equation (2) #for each tgt word, consider the aggregated matching scores over the source sentence words
             loss = self.criterion(aggr_t,y,mask_t.squeeze())
