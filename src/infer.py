@@ -142,10 +142,10 @@ class Infer():
                         align.append(src + [''])
                         for t in range(len(tgt)):
                             row = list((S_st[0,2:-1,t+2]).cpu().numpy())
-                            row.append(tgt[t])
-                            align.append(row)
+#                            row.append(tgt[t])
+                            align.append(row+[tgt[t]])
                         #print(np.matrix(align))
-                        s = [[str(e) for e in row] for row in align]
+                        s = [[':.2f'.format(e) for e in row] for row in align]
                         lens = [max(map(len, col)) for col in zip(*s)]
                         fmt = '\t'.join('{{:{}}}'.format(x) for x in lens)
                         table = [fmt.format(*row) for row in s]
