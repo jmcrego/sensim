@@ -85,7 +85,9 @@ class CosineSIM(nn.Module):
         logging.info('built criterion (cosine)')
         
     def forward(self, s1, s2, target):
-        return self.criterion(s1, s2, target) #total loss of this batch (not normalized)
+        #i use -target since target is: 1.0 (divergent) or -1.0 (parallel)
+        #and i need: 1.0 (cosine of same vectors) or -1.0 (cosine of distant vectors)
+        return self.criterion(s1, s2, -target) #total loss of this batch (not normalized)
 
 
 class AlignSIM(nn.Module):
@@ -145,7 +147,7 @@ class ComputeLossSIM:
         #ht [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
         #slen [bs] length of source sentences (I) in batch
         #tlen [bs] length of target sentences (J) in batch
-        #y [bs] parallel(1.0)/non_parallel(-1.0) value of each sentence pair
+        #y [bs] parallel(-1.0)/divergent(1.0) value of each sentence pair
         #mask_s [bs,sl]
         #mask_t [bs,tl]
         #mask_st [bs,sl,tl]
