@@ -94,9 +94,10 @@ class AlignSIM(nn.Module):
         logging.info('built criterion (align)')
         
     def forward(self, aggr, y, mask_t):
-        sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[b,lt] (by default ones builds on CPU)
-        #print('sign',sign[0])
-        #print('aggr',aggr[0])
+        print('y',y[0])
+        sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[bs,lt] (by default ones builds on CPU)
+        print('sign',sign[0])
+        print('aggr',aggr[0])
         #aggr    sign     aggr*sign loss
         #-------------------------------
         # >>0      -1           <<0   ~0
@@ -106,9 +107,9 @@ class AlignSIM(nn.Module):
         ##read like: when aggr >> 0 (target related to source) and sign is -1 (parallel) the loss is very small 
         #i change the sign sine i used -1 (uneven) +1 (parallel)
         error = torch.log(1.0 + torch.exp(aggr * -sign)) #equation (3) error of each tgt word
-        #print('error',error[0])
+        print('error',error[0])
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
-        #print('sum_error',sum_error[0])
+        print('sum_error',sum_error[0])
 
         #n_ok = ((aggr * -sign * mask_t) < 0.0).sum()
         #n = mask_t.sum()
