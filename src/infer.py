@@ -137,7 +137,8 @@ class Infer():
                         sim = cos(s,t)
                         ### and i show the alignments
                         align = []
-                        align.append([str(sim[0].cpu().detach().numpy())] + src) #mean pooling is added here
+                        sim = sim[0].cpu().detach().numpy()
+                        align.append(['{:.4f}'.format(sim)] + src) #mean pooling is added here
                         for t in range(len(tgt)):
                             row = []
                             for s in range(len(src)):
