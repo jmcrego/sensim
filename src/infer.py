@@ -139,7 +139,7 @@ class Infer():
                         print(S_st[0].size())
                         print(S_st[0])
                         align = []
-                        align.append(tgt + '')
+                        align.append(tgt + [''])
                         for s in range(len(src)):
                             line = S_st[0,s,2:-2]
                             print('line',line)
