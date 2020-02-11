@@ -343,7 +343,7 @@ class DataSet():
         ##################
         ### read files ###
         ##################
-        max_num_sents = 0 ### jmcc
+        max_num_sents = 1000 ### jmcc
         self.data = []
         for i in range(len(files)):
             if len(files[i])==1: ############# single file ##########################################
@@ -398,7 +398,9 @@ class DataSet():
         for i in range(len(indexs)):
             index = indexs[i]
             src = self.data[index][0]
+            print('src',src)
             idx_src = [vocab[s] for s in src]
+            print('idx_src',idx_src)
             if self.sim_run: ### fine tunning (SIM) 
                 if random.random() < self.p_uneven and i > 0:
                     isParallel = -1.0 ### NOT parallel
@@ -406,8 +408,11 @@ class DataSet():
                 else:
                     isParallel = 1.0 ### parallel
                     index = indexs[i]
+                print('isParallel',isParallel)
                 tgt = self.data[index][1]
+                print('tgt',tgt)
                 idx_tgt = [vocab[t] for t in tgt]
+                print('idx_tgt',idx_tgt)
                 currbatch.add_pair(src,idx_src,tgt,idx_tgt,isParallel,swap_bitext)
             else: ### pre-training (MLM)
                 if len(self.data[index]) > 1:
