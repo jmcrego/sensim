@@ -141,9 +141,8 @@ class Infer():
                         align = []
                         align.append(src + [''])
                         for t in range(len(tgt)):
-                            line = (S_st[0,2:-1,t+2]).cpu().numpy()
+                            line = list((S_st[0,2:-1,t+2]).cpu().numpy())
                             print('line',line)
-                            sys.exit()
                             line.append(src[s])
                             align.append(line)
                         print(align)
