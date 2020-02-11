@@ -31,6 +31,7 @@ class Infer():
         d_ff = opts.cfg['feedforward_size']
         h = opts.cfg['num_heads']
         dropout = opts.cfg['dropout']
+        self.align_scale = opts.cfg['align_scale']
         self.token = OpenNMTTokenizer(**opts.cfg['token'])
         self.pooling = opts.pooling
 
@@ -118,6 +119,10 @@ class Infer():
                     s = h1[:, 0, :] # take embedding of first token <cls>
                     if len(files)>1:
                         t = h2[:, 0, :] # take embedding of first token <cls>
+                elif self.pooling == 'align' and len(files) == 2:
+                    #h1 [bs, sl, es] embeddings of source words after encoder (<cls> <bos> s1 s2 ... sI <eos> <pad> ...)
+                    #h2 [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
+                    S_st = torch.bmm(h1, torch.transpose(h2, 2, 1)) * self.align_scale #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
                 else:
                     logging.error('bad pooling method: {}'.format(self.pooling))
 
@@ -125,7 +130,11 @@ class Infer():
                     sentence = torch.Tensor.cpu(s).detach().numpy()[0]
                     print(' '.join([str(tok) for tok in sentence]))
                 elif len(files)>1:
-                    sim = cos(s,t)
-                    print(torch.Tensor.cpu(sim).detach().numpy()[0])
+                    if self.pooling == 'align':
+                        #using mask_s and mask_t i must get rid of <cls> <bos> <eos> and <pad>
+                        print(S_st)
+                    else:
+                        sim = cos(s,t)
+                        print(torch.Tensor.cpu(sim).detach().numpy()[0])
 
         logging.info('End testing')
