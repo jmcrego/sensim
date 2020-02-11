@@ -137,7 +137,7 @@ class Infer():
                         print(idx_src)
                         print(tgt)
                         print(idx_tgt)
-                        print(s_st[0])
+                        print(S_st[0])
                     else:
                         sim = cos(s,t)
                         print(torch.Tensor.cpu(sim).detach().numpy()[0])
