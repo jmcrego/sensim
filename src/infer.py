@@ -132,12 +132,14 @@ class Infer():
                 elif len(files)>1:
                     if self.pooling == 'align':
                         #using mask_s and mask_t i must get rid of <cls> <bos> <eos> and <pad>
-                        print(S_st.size())
                         print(src)
                         print(idx_src)
                         print(tgt)
                         print(idx_tgt)
                         print(S_st[0])
+                        for s in range(2:S_st.size(0)-1):
+                            for t in range(2:S_st.size(1)-1):
+                                print("{}:{}:{} {}:{}:{}\t{}".format(s-2,src[s-2],idx_src[s-2], t-2,tgt[t-2],idx_tgt[t-2], S_st[0][s][t]))
                     else:
                         sim = cos(s,t)
                         print(torch.Tensor.cpu(sim).detach().numpy()[0])
