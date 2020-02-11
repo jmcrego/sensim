@@ -97,7 +97,6 @@ class AlignSIM(nn.Module):
         print('y',y[0])
         sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[bs,lt] (by default ones builds on CPU)
         print('sign',sign[0])
-        print('aggr',aggr[0])
         #aggr sign aggr*sign loss
         #-------------------------------
         # >0    -1 (par)  <0   ~0

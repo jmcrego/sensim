@@ -164,13 +164,6 @@ class Trainer():
                 #y contains +1.0 (parallel) or -1.0 (not parallel) for each sentence pair
                 #mask_s is the source sequence_length mask true/false depending on padded source words
                 #mask_t is the target sequence_length mask true/false depending on padded target words
-                print('\nx1',x1[0])
-                print('x2',x2[0])
-                print('y',y[0])
-                print('x1_mask',x1_mask[0])
-                print('x2_mask',x2_mask[0])
-                print('mask_s',mask_s)
-                print('mask_t',mask_t)
                 n_predictions = x1.size(0)
                 h1 = self.model.forward(x1,x1_mask)
                 h2 = self.model.forward(x2,x2_mask)
