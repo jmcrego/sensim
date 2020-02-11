@@ -136,6 +136,7 @@ class Infer():
                         print(idx_src)
                         print(tgt)
                         print(idx_tgt)
+                        print(S_st[0].size())
                         print(S_st[0])
                         for s in range(2,S_st.size(1)-1):
                             for t in range(2,S_st.size(2)-1):
