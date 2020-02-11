@@ -133,6 +133,11 @@ class Infer():
                     if self.pooling == 'align':
                         #using mask_s and mask_t i must get rid of <cls> <bos> <eos> and <pad>
                         print(S_st.size())
+                        print(src)
+                        print(idx_src)
+                        print(tgt)
+                        print(idx_tgt)
+                        print(s_st[0])
                     else:
                         sim = cos(s,t)
                         print(torch.Tensor.cpu(sim).detach().numpy()[0])
