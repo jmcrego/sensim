@@ -137,8 +137,8 @@ class Infer():
                         print(tgt)
                         print(idx_tgt)
                         print(S_st[0])
-                        for s in range(2:S_st.size(0)-1):
-                            for t in range(2:S_st.size(1)-1):
+                        for s in range(2,S_st.size(0)-1):
+                            for t in range(2,S_st.size(1)-1):
                                 print("{}:{}:{} {}:{}:{}\t{}".format(s-2,src[s-2],idx_src[s-2], t-2,tgt[t-2],idx_tgt[t-2], S_st[0][s][t]))
                     else:
                         sim = cos(s,t)
