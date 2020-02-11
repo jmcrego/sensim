@@ -139,9 +139,9 @@ class Infer():
                         print(S_st[0].size())
                         print(S_st[0])
                         align = []
-                        align.append(tgt + [''])
-                        for s in range(len(src)):
-                            line = S_st[0,s,2:-2]
+                        align.append(src + [''])
+                        for t in range(len(tgt)):
+                            line = S_st[0,2:-2,t]
                             print('line',line)
                             sys.exit()
                             line.append(src[s])
