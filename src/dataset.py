@@ -343,7 +343,7 @@ class DataSet():
         ##################
         ### read files ###
         ##################
-        max_num_sents = 1000 ### jmcc
+        max_num_sents = 0 ### jmcc
         self.data = []
         for i in range(len(files)):
             if len(files[i])==1: ############# single file ##########################################
