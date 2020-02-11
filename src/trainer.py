@@ -25,6 +25,7 @@ def sequence_mask(lengths, mask_n_initials=0):
     return mask.T #[bs,l]
 
 class stats():
+
     def __init__(self):
         self.n_preds = 0
         self.sum_loss = 0.0
@@ -181,6 +182,7 @@ class Trainer():
             ###
             if self.report_every_steps > 0 and self.n_steps_so_far % self.report_every_steps == 0:
                 ts.report(self.n_steps_so_far,step,'[Train]',self.cuda)
+
             ###
             ### saved
             ###
