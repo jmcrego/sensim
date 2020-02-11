@@ -9,7 +9,6 @@ import sys
 import glob
 import os
 import pyonmttok
-#from prettytable import PrettyTable
 from collections import defaultdict
 from torch import nn
 from torch.nn import functional as F
@@ -146,7 +145,6 @@ class Infer():
                             row.append(tgt[t])
                             align.add_row(row)
                         #print(np.matrix(align))
-                        #print(align.get_string(header=False, border=False))
                         s = [[str(e) for e in row] for row in align]
                         lens = [max(map(len, col)) for col in zip(*s)]
                         fmt = '\t'.join('{{:{}}}'.format(x) for x in lens)
