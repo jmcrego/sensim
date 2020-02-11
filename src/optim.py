@@ -98,15 +98,15 @@ class AlignSIM(nn.Module):
         sign = torch.ones(aggr.size(), device=y.device) * y.unsqueeze(-1) #[bs,lt] (by default ones builds on CPU)
         print('sign',sign[0])
         print('aggr',aggr[0])
-        #aggr   -sign    aggr*sign loss
+        #aggr sign aggr*sign loss
         #-------------------------------
-        # >0       -1 (paral)   <0    ~0
-        # <0       -1           >0    >0 (large)
-        # >0       +1 (uneven)  >0    >0 (large)
-        # <0       +1           <0    ~0
+        # >0    -1 (par)  <0   ~0
+        # <0    -1        >0   >0 (large)
+        # >0    +1 (div)  >0   >0 (large)
+        # <0    +1        <0   ~0
         ##read like: when aggr > 0 (target related to source) and -sign is -1 (parallel) the loss is very small 
         #i change the sign since i used -1 (uneven) +1 (parallel)
-        error = torch.log(1.0 + torch.exp(aggr * -sign)) #equation (3) error of each tgt word
+        error = torch.log(1.0 + torch.exp(aggr * sign)) #equation (3) error of each tgt word
         print('error',error[0])
         sum_error = torch.sum(error * mask_t, dim=1) #error of each sentence in batch
         print('sum_error',sum_error[0])
