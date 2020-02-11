@@ -132,13 +132,12 @@ class Infer():
                 elif len(files)>1:
                     if self.pooling == 'align':
                         align = []
-                        align.append(src + [''])
+                        align.append([''] + src)
                         for t in range(len(tgt)):
                             row = []
                             for s in range(len(src)):
                                 row.append('{:.2f}'.format(S_st[0,2+s,t+2]))
-                            #row = list((S_st[0,2:-1,t+2]).cpu().numpy())
-                            align.append(row+[tgt[t]])
+                            align.append([tgt[t]] + row)
                         #print(np.matrix(align))
                         #s = [[str(e) for e in row] for row in align]
                         lens = [max(map(len, col)) for col in zip(*align)]
