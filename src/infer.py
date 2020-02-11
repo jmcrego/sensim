@@ -146,7 +146,7 @@ class Infer():
                             row.append(tgt[t])
                             align.add_row(row)
                         #print(np.matrix(align))
-                        print align.get_string(header=False, border=False)
+                        print(align.get_string(header=False, border=False))
                     else:
                         sim = cos(s,t)
                         print(torch.Tensor.cpu(sim).detach().numpy()[0])
