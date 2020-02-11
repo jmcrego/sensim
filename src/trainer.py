@@ -155,6 +155,13 @@ class Trainer():
             else: ### fine-tunning (SIM)
                 step = 'sim'
                 x1, x2, l1, l2, x1_mask, x2_mask, y, mask_s, mask_t = self.sim_batch_cuda(batch) 
+                print('\nx1',x1[0])
+                print('x2',x2[0])
+                print('y',y[0])
+                print('x1_mask',x1_mask[0])
+                print('x2_mask',x2_mask[0])
+                print('mask_s',mask_s)
+                print('mask_t',mask_t)
                 #x1 contains the true words in batch_src
                 #x2 contains the true words in batch_tgt
                 #l1 length of sentences in batch
@@ -263,7 +270,7 @@ class Trainer():
         batch_tgt = np.array(batch.idx_tgt)
         batch_src_len = np.array(batch.lsrc)
         batch_tgt_len = np.array(batch.ltgt)
-        y = np.array(batch.isParallel)
+        y = np.array(batch.sign) #-1.0 parallel (not divergent); +1.0 not parallel (divergent)
 
         x1 = torch.from_numpy(batch_src) #[batch_size, max_len] the original words with padding
         x1_mask = torch.as_tensor((batch_src != self.vocab.idx_pad)).unsqueeze(-2) #[batch_size, 1, max_len]

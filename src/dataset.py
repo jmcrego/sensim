@@ -129,7 +129,7 @@ class batch():
         self.ltgt = []
         self.src = []
         self.tgt = []
-        self.isParallel = []
+        self.sign = []
         self.maxlsrc = 0
         self.maxltgt = 0
 
@@ -141,7 +141,7 @@ class batch():
         self.tgt.append([])
         self.idx_tgt.append([])
         self.ltgt.append(0)
-        self.isParallel.append(0.0)
+        self.sign.append(0.0)
 
         idx_src.insert(0,idx_bos)
         idx_src.append(idx_eos)
@@ -169,7 +169,7 @@ class batch():
         self.tgt.append(tgt)
         self.idx_tgt.append([])
         self.ltgt.append(0)
-        self.isParallel.append(0.0)
+        self.sign.append(0.0)
 
         idx_src.insert(0,idx_bos)
         idx_src.append(idx_eos)
@@ -190,7 +190,7 @@ class batch():
                 self.idx_src[i] += [idx_pad]*(self.maxlsrc-len(self.idx_src[i]))
         self.idx_src.append(idx_src) ### [<cls>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <sep>, <bos>, <s1>, <s2>, ..., <sn>, <eos>, <pad>, ...]   (lsrc is the position of last <eos> +1)
 
-    def add_pair(self, src, idx_src, tgt, idx_tgt, isParallel, train_swap): ### used for fine-tunning (SIM): uses <cls>, <bos> ... <eos> in both sides
+    def add_pair(self, src, idx_src, tgt, idx_tgt, sign, train_swap): ### used for fine-tunning (SIM): uses <cls>, <bos> ... <eos> in both sides
         if train_swap and random.random() < 0.5:
             aux = list(tgt)
             tgt = list(src)
@@ -202,7 +202,7 @@ class batch():
         self.src.append(src)
         self.tgt.append(tgt)
 
-        self.isParallel.append(isParallel)
+        self.sign.append(sign)
 
         idx_src.insert(0,idx_bos)
         idx_src.append(idx_eos)
@@ -397,25 +397,25 @@ class DataSet():
         currbatch = batch()
         for i in range(len(indexs)):
             index = indexs[i]
-            print('\nindex',index)
+            #print('\nindex',index)
             src = self.data[index][0]
-            print('src',src)
+            #print('src',src)
             idx_src = [vocab[s] for s in src]
-            print('idx_src',idx_src)
+            #print('idx_src',idx_src)
             if self.sim_run: ### fine tunning (SIM) 
                 if random.random() < self.p_uneven and i > 0:
-                    isParallel = -1.0 ### NOT parallel
+                    sign = 1.0 ### NOT parallel (divergent)
                     index = indexs[i-1]
                 else:
-                    isParallel = 1.0 ### parallel
+                    sign = -1.0 ### parallel (not divergent)
                     index = indexs[i]
-                print('index',index)
-                print('isParallel',isParallel)
+                #print('index',index)
+                #print('sign',sign)
                 tgt = self.data[index][1]
-                print('tgt',tgt)
+                #print('tgt',tgt)
                 idx_tgt = [vocab[t] for t in tgt]
-                print('idx_tgt',idx_tgt)
-                currbatch.add_pair(src,idx_src,tgt,idx_tgt,isParallel,swap_bitext)
+                #print('idx_tgt',idx_tgt)
+                currbatch.add_pair(src,idx_src,tgt,idx_tgt,sign,swap_bitext)
             else: ### pre-training (MLM)
                 if len(self.data[index]) > 1:
                     tgt = self.data[index][1]
