@@ -131,23 +131,19 @@ class Infer():
                     print(' '.join([str(tok) for tok in sentence]))
                 elif len(files)>1:
                     if self.pooling == 'align':
-                        #using mask_s and mask_t i must get rid of <cls> <bos> <eos> and <pad>
-                        #print(src)
-                        #print(idx_src)
-                        #print(tgt)
-                        #print(idx_tgt)
-                        #print(S_st[0].size())
-                        #print(S_st[0])
                         align = []
                         align.append(src + [''])
                         for t in range(len(tgt)):
-                            row = list((S_st[0,2:-1,t+2]).cpu().numpy())
+                            row = []
+                            for s in range(len(src)):
+                                row.append('{:.2f}'.format(S_st[0,2+s,t+2]))
+                            #row = list((S_st[0,2:-1,t+2]).cpu().numpy())
                             align.append(row+[tgt[t]])
                         #print(np.matrix(align))
-                        s = [[str(e) for e in row] for row in align]
-                        lens = [max(map(len, col)) for col in zip(*s)]
+                        #s = [[str(e) for e in row] for row in align]
+                        lens = [max(map(len, col)) for col in zip(*align)]
                         fmt = '\t'.join('{{:{}}}'.format(x) for x in lens)
-                        table = [fmt.format(*row) for row in s]
+                        table = [fmt.format(*row) for row in align]
                         print('\n'.join(table))
                     else:
                         sim = cos(s,t)
