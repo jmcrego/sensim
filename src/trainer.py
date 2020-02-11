@@ -42,7 +42,7 @@ class stats():
             Gb_reserved = torch.cuda.memory_reserved(device=device) / 1073741824
             Gb_used = torch.cuda.get_device_properties(device=device).total_memory / 1073741824
 
-        logging.info("{} step: {} ({}) Loss: {:.4f} Pred/sec: {:.1f}".format(trn_val_tst, n_steps, step, self.sum_loss/self.n_preds, self.n_preds/(time.time()-self.start)))
+        logging.info("{} step: {} ({}) Loss: {:.6f} Pred/sec: {:.1f}".format(trn_val_tst, n_steps, step, self.sum_loss/self.n_preds, self.n_preds/(time.time()-self.start)))
         #logging.info('{}'.format(torch.cuda.memory_summary(device=device, abbreviated=False)))
         self.n_preds = 0
         self.sum_loss = 0.0
