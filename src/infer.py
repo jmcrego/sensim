@@ -134,16 +134,11 @@ class Infer():
                     print('S_st_masked_s',S_st_masked_s.size())
                     print(S_st_masked_s)
 
+                    S_st_masked_st = S_st_masked_st * mask_t.transpose(2,1)
+                    print('S_st_masked_st',S_st_masked_st.size())
+                    print(S_st_masked_st)
 
-
-                    mask_t = mask_t.type(torch.float64)
-                    print('mask_t',mask_t.size())
-                    print(mask_t)
-
-                    S_st_masked_s = S_st * mask_s
-
-#                    max_s = torch.max(S_st.pow(2), dim=1)
-                    max_s = torch.max(S_st, dim=2)
+                    max_s = torch.max(S_st_masked_st)
                     print('max_s',max_s)
 
                     max_t = torch.max(max_s * mask_s,dim=1)
