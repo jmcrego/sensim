@@ -129,6 +129,13 @@ class Infer():
                     mask_s = mask_s.type(torch.float64)
                     print('mask_s',mask_s.size())
                     print(mask_s)
+
+                    S_st_masked_s = S_st * mask_s
+                    print('S_st_masked_s',S_st_masked_s.size())
+                    print(S_st_masked_s)
+
+
+
                     mask_t = mask_t.type(torch.float64)
                     print('mask_t',mask_t.size())
                     print(mask_t)
