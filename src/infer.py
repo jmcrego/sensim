@@ -129,7 +129,7 @@ class Infer():
                     print('mask_s',mask_s.size())
 
                     max_s = torch.max(S_st.pow(2), dim=1)
-                    print('max_s',max_s.size())
+                    print('max_s',max_s)
 
                     max_t = torch.max(max_s * mask_s,dim=1)
                 else:
