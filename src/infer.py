@@ -125,10 +125,18 @@ class Infer():
                     S_st = torch.bmm(h1, torch.transpose(h2, 2, 1)) * self.align_scale #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
                     ### scale to <=10
                     print('S_st',S_st.size())
+                    print(S_st)
                     mask_s = mask_s.type(torch.float64)
                     print('mask_s',mask_s.size())
+                    print(mask_s)
+                    mask_t = mask_t.type(torch.float64)
+                    print('mask_t',mask_t.size())
+                    print(mask_t)
 
-                    max_s = torch.max(S_st.pow(2), dim=1)
+                    S_st_masked_s = S_st * mask_s
+
+#                    max_s = torch.max(S_st.pow(2), dim=1)
+                    max_s = torch.max(S_st, dim=2)
                     print('max_s',max_s)
 
                     max_t = torch.max(max_s * mask_s,dim=1)
