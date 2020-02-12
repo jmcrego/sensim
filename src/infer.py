@@ -124,7 +124,7 @@ class Infer():
                     #h2 [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
                     S_st = torch.bmm(h1, torch.transpose(h2, 2, 1)) * self.align_scale #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
                     ### scale to <=10
-                    max_s = torch.max(torch.max(S_st.pow(2) * mask_s.unsqueeze(-1),dim=1).t * mask_s,dim=1)
+                    max_s = torch.max(torch.max(S_st.pow(2) * mask_s.unsqueeze(-1),dim=1).t() * mask_s,dim=1)
                 else:
                     logging.error('bad pooling method: {}'.format(self.pooling))
 
