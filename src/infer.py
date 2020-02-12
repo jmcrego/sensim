@@ -138,10 +138,11 @@ class Infer():
                     print('S_st_masked_st',S_st_masked_st.size())
                     print(S_st_masked_st)
 
-                    max_s = torch.max(S_st_masked_st)
+                    max_div_10 = torch.max(S_st_masked_st.pow(2)).pow(0.5) / 10.0
                     print('max_s',max_s)
 
-                    max_t = torch.max(max_s * mask_s,dim=1)
+                    print(S_st / max_div_10)
+
                 else:
                     logging.error('bad pooling method: {}'.format(self.pooling))
 
