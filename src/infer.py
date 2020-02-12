@@ -134,7 +134,7 @@ class Infer():
                     print('S_st_masked_s',S_st_masked_s.size())
                     print(S_st_masked_s)
 
-                    S_st_masked_st = S_st_masked_st * mask_t.transpose(2,1)
+                    S_st_masked_st = S_st_masked_s * mask_t.transpose(2,1)
                     print('S_st_masked_st',S_st_masked_st.size())
                     print(S_st_masked_st)
 
