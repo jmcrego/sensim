@@ -139,7 +139,7 @@ class Infer():
                     print(S_st_masked_st)
 
                     max_div_10 = torch.max(S_st_masked_st.pow(2)).pow(0.5) / 10.0
-                    print('max_s',max_s)
+                    print('max_div_10',max_div_10)
 
                     print(S_st / max_div_10)
 
