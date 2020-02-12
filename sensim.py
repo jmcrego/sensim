@@ -29,7 +29,10 @@ class Argv():
    -loglevel LEVEL : use 'debug', 'info', 'warning', 'critical' or 'error' (default info) 
    -h              : this help
 
-* The script needs: pyonmttok, pyyaml
+* The script needs:
+  + pytorch:   conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
+  + pyonmttok: pip install pyonmttok
+  + pyyaml:    pip install PyYAML
 * Use -learn YAML (or -infer YAML) for learning (or inference) modes
 * When learning from scratch:
   + The directory -dir DIR is created
