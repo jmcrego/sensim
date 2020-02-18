@@ -31,7 +31,7 @@ class Infer():
         d_ff = opts.cfg['feedforward_size']
         h = opts.cfg['num_heads']
         dropout = opts.cfg['dropout']
-        self.align_scale = 1.0
+        self.align_scale = 0.001
         self.token = OpenNMTTokenizer(**opts.cfg['token'])
         self.pooling = opts.pooling
 
@@ -124,11 +124,11 @@ class Infer():
                     #h2 [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
                     S_st = torch.bmm(h1, torch.transpose(h2, 2, 1)) * self.align_scale #[bs, sl, es] x [bs, es, tl] = [bs, sl, tl]            
                     ### scale S_st to <=10
-                    mask_s = mask_s.type(torch.float64)
-                    S_st_masked_s = S_st * mask_s #[bs, ls, lt] * [bs, ls, 1]
-                    S_st_masked_st = S_st_masked_s * mask_t.transpose(2,1) #[bs, ls, lt] * [bs, 1, lt]
-                    max_div_10 = torch.max(S_st_masked_st.pow(2)).pow(0.5) / 1.0 ### largest number will be 10.0
-                    S_st = S_st / max_div_10
+#                    mask_s = mask_s.type(torch.float64)
+#                    S_st_masked_s = S_st * mask_s #[bs, ls, lt] * [bs, ls, 1]
+#                    S_st_masked_st = S_st_masked_s * mask_t.transpose(2,1) #[bs, ls, lt] * [bs, 1, lt]
+#                    max_div_10 = torch.max(S_st_masked_st.pow(2)).pow(0.5) / 1.0 ### largest number will be 10.0
+#                    S_st = S_st / max_div_10
                 else:
                     logging.error('bad pooling method: {}'.format(self.pooling))
 
