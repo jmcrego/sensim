@@ -65,7 +65,7 @@ class Infer():
             if ftgt.endswith('.gz'): ft = gzip.open(ftgt, 'rb')
             else: ft = io.open(ftgt, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
-        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        cos = nn.CosineSimilarity(dim=0, eps=1e-6)
         self.data = []
         self.model.eval()
         with torch.no_grad():
