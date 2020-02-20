@@ -65,7 +65,7 @@ class Infer():
             if ftgt.endswith('.gz'): ft = gzip.open(ftgt, 'rb')
             else: ft = io.open(ftgt, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
-        cos = nn.CosineSimilarity(dim=0, eps=1e-6)
+        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         self.data = []
         self.model.eval()
         with torch.no_grad():
@@ -133,9 +133,6 @@ class Infer():
                 else:
                     logging.error('bad pooling method: {}'.format(self.pooling))
 
-                print(s.shape)
-                sys.exit()
-
                 if len(files)==1:
                     sentence = torch.Tensor.cpu(self.norm(s)).detach().numpy()[0]
                     print(' '.join([str(tok) for tok in sentence]))
@@ -167,6 +164,8 @@ class Infer():
         logging.info('End testing')
 
     def norm(self,x):
+        print(x.shape)
+        sys.exit()
         if not self.normalize:
             return x
         return F.normalize(x)
