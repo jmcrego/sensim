@@ -65,7 +65,7 @@ class Infer():
             if ftgt.endswith('.gz'): ft = gzip.open(ftgt, 'rb')
             else: ft = io.open(ftgt, 'r', encoding='utf-8', newline='\n', errors='ignore')
 
-        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        cos = nn.CosineSimilarity(dim=1, eps=1e-12)
         self.data = []
         self.model.eval()
         with torch.no_grad():
@@ -142,6 +142,7 @@ class Infer():
                         s = torch.sum(h1 * mask_s, dim=1) / torch.sum(mask_s, dim=1)
                         t = torch.sum(h2 * mask_t, dim=1) / torch.sum(mask_t, dim=1)
                         sim = cos(s,t)
+                        sim2 = F.cosine_similarity(s, t, dim=1, eps=1e-12)
                         ### and i show the alignments
                         align = []
                         sim = sim[0].cpu().detach().numpy()
@@ -158,14 +159,14 @@ class Infer():
                         table = [fmt.format(*row) for row in align]
                         print('\n'.join(table))
                     else:
-                        similarity = cos(self.norm(s),self.norm(t))
-                        print(torch.Tensor.cpu(similarity).detach().numpy()[0])
+                        sim = cos(self.norm(s),self.norm(t))
+                        sim2 = F.cosine_similarity(s, t, dim=1, eps=1e-12)
+                        print(torch.Tensor.cpu(sim).detach().numpy()[0])
+                        print(torch.Tensor.cpu(sim2).detach().numpy()[0])
 
         logging.info('End testing')
 
     def norm(self,x):
-        print(x.shape)
-        sys.exit()
         if not self.normalize:
             return x
         return F.normalize(x,p=2,dim=1,eps=1e-12)
