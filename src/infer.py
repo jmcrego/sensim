@@ -168,4 +168,4 @@ class Infer():
         sys.exit()
         if not self.normalize:
             return x
-        return F.normalize(x)
+        return F.normalize(x,p=2,dim=1,eps=1e-12)
