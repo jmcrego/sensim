@@ -142,6 +142,7 @@ class ComputeLossSIM:
         self.opt = opt
         self.R = R
 
+
     def __call__(self, hs, ht, slen, tlen, y, mask_s, mask_t): 
         #hs [bs, sl, es] embeddings of source words after encoder (<cls> <bos> s1 s2 ... sI <eos> <pad> ...)
         #ht [bs, tl, es] embeddings of target words after encoder (<cls> <bos> t1 t2 ... tJ <eos> <pad> ...)
