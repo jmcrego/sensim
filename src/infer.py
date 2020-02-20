@@ -34,6 +34,7 @@ class Infer():
         self.align_scale = 0.001
         self.token = OpenNMTTokenizer(**opts.cfg['token'])
         self.pooling = opts.pooling
+        self.normalize = True
 
         self.model = make_model(V, N=N, d_model=d_model, d_ff=d_ff, h=h, dropout=dropout)
         if self.cuda:
@@ -132,8 +133,9 @@ class Infer():
                 else:
                     logging.error('bad pooling method: {}'.format(self.pooling))
 
+
                 if len(files)==1:
-                    sentence = torch.Tensor.cpu(s).detach().numpy()[0]
+                    sentence = torch.Tensor.cpu(self.norm(s)).detach().numpy()[0]
                     print(' '.join([str(tok) for tok in sentence]))
                 elif len(files)>1:
                     if self.pooling == 'align':
@@ -157,7 +159,12 @@ class Infer():
                         table = [fmt.format(*row) for row in align]
                         print('\n'.join(table))
                     else:
-                        sim = cos(s,t)
-                        print(torch.Tensor.cpu(sim).detach().numpy()[0])
+                        similarity = cos(self.norm(s),self.norm(t))
+                        print(torch.Tensor.cpu(similarity).detach().numpy()[0])
 
         logging.info('End testing')
+
+    def norm(self,x):
+        if not self.normalize:
+            return x
+        return F.normalize(x)
