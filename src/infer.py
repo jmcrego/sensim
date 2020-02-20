@@ -133,6 +133,8 @@ class Infer():
                 else:
                     logging.error('bad pooling method: {}'.format(self.pooling))
 
+                print(s.shape)
+                sys.exit()
 
                 if len(files)==1:
                     sentence = torch.Tensor.cpu(self.norm(s)).detach().numpy()[0]
